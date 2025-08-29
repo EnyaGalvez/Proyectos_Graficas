@@ -88,8 +88,7 @@ pub fn draw_sprites(
         let ang_to_sprite = dyp.atan2(dxp);
         let mut ang = normalize_angle(ang_to_sprite - player.a);
 
-        // si está muy fuera del FOV, lo omitimos
-        let extra_margin = 0.1; // pequeño margen
+        let extra_margin = 0.1;
         if ang.abs() > (FOV * 0.5 + extra_margin) {
             continue;
         }
@@ -97,7 +96,7 @@ pub fn draw_sprites(
         // posición horizontal en la pantalla (centro del sprite)
         let screen_x = hw * (1.0 + ang / (FOV * 0.5));
 
-        // tamaño proyectado (cuadrado)
+        // tamaño proyectado
         let size_px = ((block_size as f32) / dist.max(1.0)) * dpp * spr.size;
         let half = size_px * 0.5;
 
@@ -121,7 +120,6 @@ pub fn draw_sprites(
         // barrido por columnas con test de profundidad por zbuffer
         for x in start_x..=end_x {
             let col = x as usize;
-            // si está detrás de la pared en esta columna, lo saltamos
             if col < zbuffer.len() && dist >= zbuffer[col] {
                 continue;
             }
