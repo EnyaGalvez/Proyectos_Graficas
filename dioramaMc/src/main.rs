@@ -21,6 +21,7 @@ use intersect::{Intersect, RayIntersect};
 use camera::Camera;
 use light::Light;
 use material::Material;
+use texture::Texture;
 
 const SHADOW_BIAS: f32 = 1e-4;
 
@@ -78,20 +79,46 @@ pub fn cast_ray(
         return Color::new(0, 0, 26);
     }
 
+    // albedo
+    let base_color = if let Some(tex) = &intersect.material.albedo_map {
+        if intersect.has_uv {
+            let (u, v) = intersect.uv;
+            tex.sample_tiled(u, v, intersect.material.tiling)
+        } else {
+            intersect.material.diffuse
+        }
+    } else {
+        intersect.material.diffuse
+    };
+
+    // normal map
+    let mut n = intersect.normal;
+    if let (true, Some(nmap)) = (intersect.has_tangent, &intersect.material.normal_map) {
+        if intersect.has_uv {
+            let (u, v) = intersect.uv;
+            let nt = nmap.sample_normal_tangent(u, v, intersect.material.tiling); // (x,y,z) [-1,1]
+            let t = nalgebra_glm::normalize(&intersect.tangent);
+            let b = nalgebra_glm::normalize(&intersect.bitangent);
+            let n0 = nalgebra_glm::normalize(&n);
+            n = nalgebra_glm::normalize(&(t * nt.x + b * nt.y + n0 * nt.z));
+        }
+    }
+
+    // luz
     let light_dir = (light.position - intersect.point).normalize();
     let view_dir = (ray_origin - intersect.point).normalize();
-    let reflect_dir = reflect(&-light_dir, &intersect.normal);
+    let reflect_dir = reflect(&-light_dir, &n);
 
     let shadow_intensity = cast_shadow(&intersect, light, objects);
     let light_intensity = light.intensity * (1.0 - shadow_intensity);
 
-    let diffuse_intensity = intersect.normal.dot(&light_dir).max(0.0).min(1.0);
-    let diffuse = intersect.material.diffuse * intersect.material.albedo[0] * diffuse_intensity * light_intensity;
+    let diffuse_intensity = n.dot(&light_dir).max(0.0).min(1.0);
+    let diffuse = base_color * intersect.material.albedo[0] * diffuse_intensity * light_intensity;
 
     let specular_intensity = view_dir.dot(&reflect_dir).max(0.0).powf(intersect.material.specular);
     let specular = light.color * intersect.material.albedo[1] * specular_intensity * light_intensity;
 
-    diffuse + specular
+    return diffuse + specular
 }
 
 pub fn render(framebuffer: &mut Framebuffer, objects: &[Box<dyn RayIntersect>], camera: &Camera, light: &Light) {
@@ -100,6 +127,7 @@ pub fn render(framebuffer: &mut Framebuffer, objects: &[Box<dyn RayIntersect>], 
     let aspect_ratio = width / height;
     let fov = PI/3.0;
     let perspective_scale = (fov * 0.5).tan();
+    
 
     // random number generator
     // let mut rng = rand::thread_rng();
@@ -130,10 +158,10 @@ pub fn render(framebuffer: &mut Framebuffer, objects: &[Box<dyn RayIntersect>], 
 }
 
 fn main() {
-    let window_width = 1000;
-    let window_height = 800;
-    let framebuffer_width = 1000;
-    let framebuffer_height = 800;
+    let window_width = 800;
+    let window_height = 600;
+    let framebuffer_width = 800;
+    let framebuffer_height = 600;
 
     let frame_delay = Duration::from_millis(16);
 
@@ -149,7 +177,17 @@ fn main() {
     window.set_position(500, 500);
     window.update();
 
-    // Colors
+    // textures
+    let brick_albedo = Texture::from_file("assets/brick-texture.jpg");
+    let brick_normal = Texture::from_file("assets/brick-normal.jpg");
+
+    let wood_albedo = Texture::from_file("assets/wood-texture.jpg");
+    let wood_normal = Texture::from_file("assets/wood-normal.jpg");
+
+    println!("brick: {}x{}", brick_albedo.w, brick_albedo.h);
+    println!("wood:  {}x{}", wood_albedo.w,  wood_albedo.h);
+
+    // materials
     let pink = Material::new(
         Color::new(255, 153, 204),
         10.0,
@@ -160,13 +198,13 @@ fn main() {
         Color::new(181,140, 90),
         8.0,
         [0.9, 0.1]
-    );
+    ).with_albedo_map(wood_albedo.clone(), 2.0).with_normal_map(wood_normal.clone());
 
     let stone = Material::new(
         Color::new(180,180,180), 
         32.0,
         [0.8, 0.2]
-    );
+    ).with_albedo_map(brick_albedo.clone(), 2.0).with_normal_map(brick_normal.clone());
 
     // Objects (cubo, pared, escalera)
     let cube = Cube::from_center_size(Vec3::new(-2.0, 0.0, 0.0), 1.6, pink);
@@ -205,6 +243,9 @@ fn main() {
 
     let mut last_time = Instant::now();
 
+    let mut dirty = true;
+
+
     while window.is_open() {
         let now = Instant::now();
         let dt = (now - last_time).as_secs_f32();
@@ -227,26 +268,64 @@ fn main() {
         let dyaw = yaw_speed * dt * speed_factor;
         let dpitch = pitch_speed * dt * speed_factor;
 
-        if window.is_key_down(Key::Left) { camera.orbit(dyaw, 0.0); }
-        if window.is_key_down(Key::Right) { camera.orbit(-dyaw, 0.0); }
-        if window.is_key_down(Key::Up) { camera.orbit(0.0, dpitch); }
-        if window.is_key_down(Key::Down) { camera.orbit(0.0, -dpitch); }
+        let mut moved = false;
+
+        if window.is_key_down(Key::Left) { 
+            camera.orbit(dyaw, 0.0);
+            moved = true;
+        }
+        if window.is_key_down(Key::Right) { 
+            camera.orbit(-dyaw, 0.0);
+            moved = true;
+        }
+        if window.is_key_down(Key::Up) {
+            camera.orbit(0.0, dpitch);
+            moved = true;
+        }
+        if window.is_key_down(Key::Down) {
+            camera.orbit(0.0, -dpitch);
+            moved = true;
+        }
 
         // Pan en X/Y de cámara (WASD)
         let p = pan_speed * dt * speed_factor;
-        if window.is_key_down(Key::A) { camera.pan(-p, 0.0); }
-        if window.is_key_down(Key::D) { camera.pan( p, 0.0); }
-        if window.is_key_down(Key::W) { camera.pan(0.0,  p); }
-        if window.is_key_down(Key::S) { camera.pan(0.0, -p); }
+        if window.is_key_down(Key::A) {
+            camera.pan(-p, 0.0);
+            moved = true;
+        }
+        if window.is_key_down(Key::D) {
+            camera.pan( p, 0.0);
+            moved = true;
+        }
+        if window.is_key_down(Key::W) {
+            camera.pan(0.0,  p);
+            moved = true;
+        }
+        if window.is_key_down(Key::S) {
+            camera.pan(0.0, -p);
+            moved = true;
+        }
 
         // Dolly en Z de cámara (Q/E)
         let dz = dolly_speed * dt * speed_factor;
-        if window.is_key_down(Key::Q) { camera.dolly(-dz); }
-        if window.is_key_down(Key::E) { camera.dolly( dz); }
+        if window.is_key_down(Key::Q) {
+            camera.dolly(-dz);
+            moved = true;
+        }
+        if window.is_key_down(Key::E) {
+            camera.dolly( dz);
+            moved = true;
+        }
 
-        framebuffer.clear();
+        
 
-        render(&mut framebuffer, &scene, &camera, &light);
+        if moved { dirty = true; }
+
+        if dirty {
+            framebuffer.clear();
+            render(&mut framebuffer, &scene, &camera, &light);
+            dirty = false;
+        }
 
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)

@@ -59,6 +59,9 @@ impl RayIntersect for Cube {
         let mut u = 0.0f32;
         let mut v = 0.0f32;
 
+        let mut tangent = Vec3::new(1.0, 0.0, 0.0);
+        let mut bitangent = Vec3::new(0.0, 1.0, 0.0);
+
         let sx = self.max.x - self.min.x;
         let sy = self.max.y - self.min.y;
         let sz = self.max.z - self.min.z;
@@ -69,37 +72,49 @@ impl RayIntersect for Cube {
             normal = Vec3::new(-1.0, 0.0, 0.0);
             u = (point.z - self.min.z) / sz;
             v = (point.y - self.min.y) / sy;
+            tangent = Vec3::new(0.0, 0.0, 1.0);
+            bitangent = Vec3::new(0.0, 1.0, 0.0);
         }
         // Cara +X
         else if (point.x - self.max.x).abs() < eps {
             normal = Vec3::new(1.0, 0.0, 0.0);
             u = (self.max.z - point.z) / sz;
             v = (point.y - self.min.y) / sy;
+            tangent = Vec3::new(0.0, 0.0, -1.0);
+            bitangent = Vec3::new(0.0, 1.0, 0.0);
         }
         // Cara -Y
         else if (point.y - self.min.y).abs() < eps {
             normal = Vec3::new(0.0, -1.0, 0.0);
             u = (point.x - self.min.x) / sx;
             v = (self.max.z - point.z) / sz;
+            tangent = Vec3::new(1.0, 0.0, 0.0);
+            bitangent = Vec3::new(0.0, 0.0, -1.0);
         }
         // Cara +Y
         else if (point.y - self.max.y).abs() < eps {
             normal = Vec3::new(0.0, 1.0, 0.0);
             u = (point.x - self.min.x) / sx;
             v = (point.z - self.min.z) / sz;
+            tangent = Vec3::new(1.0, 0.0, 0.0);
+            bitangent = Vec3::new(0.0, 0.0, 1.0);
         }
         // Cara -Z
         else if (point.z - self.min.z).abs() < eps {
             normal = Vec3::new(0.0, 0.0, -1.0);
             u = (self.max.x - point.x) / sx;
             v = (point.y - self.min.y) / sy;
+            tangent = Vec3::new(-1.0, 0.0, 0.0);
+            bitangent = Vec3::new(0.0, 1.0, 0.0);
         }
         // Cara +Z
         else if (point.z - self.max.z).abs() < eps {
             normal = Vec3::new(0.0, 0.0, 1.0);
             u = (point.x - self.min.x) / sx;
             v = (point.y - self.min.y) / sy;
+            tangent = Vec3::new(1.0, 0.0, 0.0);
+            bitangent = Vec3::new(0.0, 1.0, 0.0);
         }
-    Intersect::new(point, normal, t, self.material.clone()).with_uv(u, v)
+    Intersect::new(point, normal, t, self.material.clone()).with_uv(u, v).with_tangent(tangent, bitangent)
     }
 }

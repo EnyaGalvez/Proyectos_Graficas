@@ -12,6 +12,9 @@ pub struct Intersect {
     pub material: Material,
     pub uv: (f32, f32),
     pub has_uv: bool,
+    pub tangent: Vec3,
+    pub bitangent: Vec3,
+    pub has_tangent: bool
 }
 
 impl Intersect {
@@ -24,12 +27,22 @@ impl Intersect {
             material,
             uv: (0.0, 0.0),
             has_uv: false,
+            tangent: Vec3::zeros(),
+            bitangent: Vec3::zeros(),
+            has_tangent: false
         }
     }
 
     pub fn with_uv(mut self, u: f32, v: f32) -> Self { // helper
         self.uv = (u, v);
         self.has_uv = true;
+        self
+    }
+
+    pub fn with_tangent(mut self, t: Vec3, b: Vec3) -> Self {
+        self.tangent = t;
+        self.bitangent = b;
+        self.has_tangent = true;
         self
     }
 
@@ -42,6 +55,9 @@ impl Intersect {
             material: Material::black(),
             uv: (0.0, 0.0),
             has_uv: false,
+            tangent: Vec3::zeros(),
+            bitangent: Vec3::zeros(),
+            has_tangent: false
         }
     }
 }
