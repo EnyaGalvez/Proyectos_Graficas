@@ -7,7 +7,7 @@ use std::f32::consts::PI;
 
 mod framebuffer;
 mod intersect;
-mod cube; 
+mod shapes3d;
 mod color;
 mod camera;
 mod light;
@@ -15,7 +15,7 @@ mod material;
 mod texture;
 
 use framebuffer::Framebuffer;
-use cube::Cube;
+use shapes3d::{Cube, Wall, Stair};
 use color::Color;
 use intersect::{Intersect, RayIntersect};
 use camera::Camera;
@@ -31,7 +31,7 @@ fn reflect(incident: &Vec3, normal: &Vec3) -> Vec3 {
 fn cast_shadow(
     intersect: &Intersect,
     light: &Light,
-    objects: &[Cube],
+    objects: &[Box<dyn RayIntersect>],
 ) -> f32 {
     let light_dir = (light.position - intersect.point).normalize();
     let light_distance = (light.position - intersect.point).magnitude();
@@ -60,14 +60,14 @@ fn cast_shadow(
 pub fn cast_ray(
     ray_origin: &Vec3,
     ray_direction: &Vec3,
-    objects: &[Cube],
+    objects: &[Box<dyn RayIntersect>],
     light: &Light,
 ) -> Color {
     let mut intersect = Intersect::empty();
     let mut zbuffer = f32::INFINITY;
 
-    for object in objects {
-        let i = object.ray_intersect(ray_origin, ray_direction);
+    for obj in objects {
+        let i = obj.ray_intersect(ray_origin, ray_direction);
         if i.is_intersecting && i.distance < zbuffer {
             zbuffer = i.distance;
             intersect = i;
@@ -94,7 +94,7 @@ pub fn cast_ray(
     diffuse + specular
 }
 
-pub fn render(framebuffer: &mut Framebuffer, objects: &[Cube], camera: &Camera, light: &Light) {
+pub fn render(framebuffer: &mut Framebuffer, objects: &[Box<dyn RayIntersect>], camera: &Camera, light: &Light) {
     let width = framebuffer.width as f32;
     let height = framebuffer.height as f32;
     let aspect_ratio = width / height;
@@ -134,6 +134,7 @@ fn main() {
     let window_height = 800;
     let framebuffer_width = 1000;
     let framebuffer_height = 800;
+
     let frame_delay = Duration::from_millis(16);
 
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
@@ -148,14 +149,36 @@ fn main() {
     window.set_position(500, 500);
     window.update();
 
+    // Colors
     let pink = Material::new(
         Color::new(255, 153, 204),
         10.0,
         [0.9, 0.1],
     );
 
-    let objects = [
-        Cube::from_center_size(Vec3::new(0.0, 0.0, 0.0), 1.6, pink),
+    let wood = Material::new(
+        Color::new(181,140, 90),
+        8.0,
+        [0.9, 0.1]
+    );
+
+    let stone = Material::new(
+        Color::new(180,180,180), 
+        32.0,
+        [0.8, 0.2]
+    );
+
+    // Objects (cubo, pared, escalera)
+    let cube = Cube::from_center_size(Vec3::new(-2.0, 0.0, 0.0), 1.6, pink);
+
+    let v_slap = Wall::from_center_dims(Vec3::new(0.0, 0.0, 0.0), 1.6, 1.6, 0.6, stone);
+
+    let stair = Stair::from_center_edge(Vec3::new(2.0, 0.0, 0.0), 1.6, wood, false);
+
+    let scene: Vec<Box<dyn RayIntersect>> = vec![
+        Box::new(cube),
+        Box::new(v_slap),
+        Box::new(stair),
     ];
 
     // Initialize camera
@@ -164,10 +187,9 @@ fn main() {
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
     );
-    let rotation_speed = PI/50.0;
 
     let light = Light::new(
-        Vec3::new(4.0, 6.0, 3.0),
+        Vec3::new(6.0, 8.0, 6.0),
         Color::new(255, 255, 204),
         1.0
     );
@@ -188,7 +210,10 @@ fn main() {
         let dt = (now - last_time).as_secs_f32();
         last_time = now;
 
-        
+        if window.is_key_down(Key::Escape) {
+            break;
+        }
+
         // factor de velocidad
         let mut speed_factor = 1.0;
         if window.is_key_down(Key::LeftShift) || window.is_key_down(Key::RightShift) {
@@ -218,5 +243,15 @@ fn main() {
         let dz = dolly_speed * dt * speed_factor;
         if window.is_key_down(Key::Q) { camera.dolly(-dz); }
         if window.is_key_down(Key::E) { camera.dolly( dz); }
+
+        framebuffer.clear();
+
+        render(&mut framebuffer, &scene, &camera, &light);
+
+        window
+            .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
+            .unwrap();
+
+        std::thread::sleep(frame_delay);
     }
 }
