@@ -1,2 +1,2 @@
-# Proyecto_MazeGame
-Proyecto 1: Raycasting
+# Proyecto_DioramaMc
+Proyecto 2: Raytracing
