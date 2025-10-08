@@ -22,13 +22,53 @@ use color::Color;
 use camera::Camera;
 use light::Light;
 use material::Material;
-use texture::Texture;
+use texture::{Texture, TextureOptions};
 use render::{Scene, RenderPipeline};
 
 #[derive(Clone)]
 pub struct SkinTexture {
     pub albedo: Texture,
     pub normal: Texture,
+}
+
+pub fn load_textures() -> HashMap<&'static str, SkinTexture> {
+    let mut texture_table = HashMap::new();
+
+    let albedo_opts = TextureOptions {
+        generate_mips: true,
+        max_w: 512,
+        max_h: 512,
+        ..Default::default()
+    };
+
+    let normal_opts = TextureOptions {
+        generate_mips: true,
+        max_w: 256,
+        max_h: 256,
+        ..Default::default()
+    };
+
+    texture_table.insert("wood", SkinTexture {
+        albedo: Texture::from_file_with("assets/wood-texture.jpg", albedo_opts),
+        normal: Texture::from_file_with("assets/wood-normal.jpg", normal_opts),
+    });
+
+    texture_table.insert("brick", SkinTexture {
+        albedo: Texture::from_file_with("assets/brick-texture.jpg", albedo_opts),
+        normal: Texture::from_file_with("assets/brick-normal.jpg", normal_opts),
+    });
+
+    texture_table.insert("stone", SkinTexture{
+        albedo: Texture::from_file_with("assets/stone-texture.jpg", albedo_opts),
+        normal: Texture::from_file_with("assets/stone-normal.jpg", normal_opts),
+    });
+
+    texture_table.insert("wool", SkinTexture{
+        albedo: Texture::from_file_with("assets/rug-texture.jpg", albedo_opts),
+        normal: Texture::from_file_with("assets/rug-normal.jpg", normal_opts),
+    });
+    
+    texture_table
 }
 
 fn main() {
@@ -55,25 +95,13 @@ fn main() {
     window.update();
 
     // textures from images
-    let mut texture_table: HashMap<&str, SkinTexture> = HashMap::new();
-
-    texture_table.insert("wood", SkinTexture {
-        albedo: Texture::from_file("assets/wood-texture.jpg"),
-        normal: Texture::from_file("assets/wood-normal.jpg"),
-    });
-
-    texture_table.insert("brick", SkinTexture {
-        albedo: Texture::from_file("assets/brick-texture.jpg"),
-        normal: Texture::from_file("assets/brick-normal.jpg"),
-    });
+    let texture_table = load_textures();
+    let wood_texture = texture_table.get("wood").unwrap();
+    let brick_texture = texture_table.get("brick").unwrap();
+    let stone_texture = texture_table.get("stone").unwrap();
+    let wool_texture = texture_table.get("wool").unwrap();
 
     // materials
-    let pink = Material::new(
-        Color::new(255, 153, 204),
-        10.0,
-        [0.9, 0.1],
-    );
-
     let wood_texture = texture_table.get("wood").unwrap();
     let wood = Material::new(
         Color::new(181,140, 90),
@@ -82,32 +110,76 @@ fn main() {
     ).with_albedo_map(
         wood_texture.albedo.clone(),
         0.5, 0.5
+    ).with_normal_map(
+        wood_texture.normal.clone(),
+        0.5, 0.5,
     );
 
 
     let brick_texture = texture_table.get("brick").unwrap();
     let brick = Material::new(
         Color::new(180,180,180), 
-        32.0,
-        [0.8, 0.2]
+        16.0,
+        [0.85, 0.15]
     ).with_albedo_map(
         brick_texture.albedo.clone(),
         0.5, 0.5
+    ).with_normal_map(
+        brick_texture.normal.clone(),
+        0.5, 0.5,
+    );
+
+    let stone_texture = texture_table.get("stone").unwrap();
+    let stone = Material::new(
+        Color::new(190,190,190), 
+        32.0,
+        [0.7, 0.25]
+    ).with_albedo_map(
+        stone_texture.albedo.clone(),
+        0.5, 0.5
+    ).with_normal_map(
+        stone_texture.normal.clone(),
+        0.5, 0.5,
+    );
+
+    let wool_texture = texture_table.get("wool").unwrap();
+    let wool = Material::new(
+        Color::new(255, 153, 204), 
+        10.0,
+        [0.9, 0.1]
+    ).with_albedo_map(
+        wool_texture.albedo.clone(),
+        0.5, 0.5
+    ).with_normal_map(
+        wool_texture.normal.clone(),
+        0.5, 0.5,
+    );
+
+    let glass = Material::new(
+        Color::new(255,255,255), 
+        128.0,
+        [0.0, 1.0]
     );
 
     // Comprobacion de carga de texturas
+    /*
     println!("brick albedo: {}x{}", brick_texture.albedo.w, brick_texture.albedo.h);
     println!("wood albedo: {}x{}", wood_texture.albedo.w, wood_texture.albedo.h);
     println!("\nbrick normal: {}x{}", brick_texture.normal.w, brick_texture.normal.h);
-    println!("wood normal: {}x{}", wood_texture.normal.w, wood_texture.normal.h);
+    println!("wood normal: {}x{}", wood_texture.normal.w, wood_texture.normal.h);*/
 
     // Objects (cubo, pared, escalera)
     const SCALE: f32 = 2.0 / 3.0;
-    let cube = Cube::from_center_size(Vec3::new(-2.0, 0.0, 0.0), 1.6 * SCALE, pink);
+
+    let stone_cube = Cube::from_center_size(Vec3::new(-3.0, 0.0, 0.0), 1.6 * SCALE, stone);
+
+    let wool_cube = Cube::from_center_size(Vec3::new(-1.0, 0.0, 0.0), 1.6 * SCALE, wool);
 
     let v_slap = Wall::from_center_dims(Vec3::new(0.0, 0.0, 0.0), 1.6 * SCALE, 1.6 * SCALE, 0.6 * SCALE, brick);
 
-    let stair = Stair::from_center_edge(Vec3::new(2.0, 0.0, 0.0), 1.6 * SCALE, wood, false);
+    let glass = Wall::from_center_dims(Vec3::new(1.0, 0.0, 0.0), 1.6 * SCALE, 1.6 * SCALE, 0.6 * SCALE, glass);
+
+    let stair = Stair::from_center_edge(Vec3::new(3.0, 0.0, 0.0), 1.6 * SCALE, wood, false);
 
     let light = Light::new(
         Vec3::new(5.0, 6.0, 4.0),
@@ -117,8 +189,10 @@ fn main() {
 
     let scene = Scene::new(
             vec![
-            Box::new(cube) as Box<dyn crate::intersect::RayIntersect>,
+            Box::new(stone_cube) as Box<dyn crate::intersect::RayIntersect>,
+            Box::new(wool_cube) as Box<dyn crate::intersect::RayIntersect>,
             Box::new(v_slap) as Box<dyn crate::intersect::RayIntersect>,
+            Box::new(glass) as Box<dyn crate::intersect::RayIntersect>,
             Box::new(stair) as Box<dyn crate::intersect::RayIntersect>,
         ],
         light,

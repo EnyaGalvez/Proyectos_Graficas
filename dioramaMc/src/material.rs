@@ -33,8 +33,10 @@ impl Material {
         self
     }
 
-  pub fn with_normal_map(mut self, tex: Texture) -> Self {
+  pub fn with_normal_map(mut self, tex: Texture, tu: f32, tv: f32) -> Self {
         self.normal_map = Some(tex);
+        self.tiling_u = tu;
+        self.tiling_v = tv;
         self
     }
 

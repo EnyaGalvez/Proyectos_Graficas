@@ -94,7 +94,7 @@ impl RenderPipeline {
         let base_color = if let Some(tex) = &best.material.albedo_map {
             if best.has_uv {
                 let (u, v) = best.uv;
-                tex.sample_tiled_uv(u, v, best.material.tiling_u, best.material.tiling_v)
+                tex.sample_tiled_mip(u, v, best.material.tiling_u, best.material.tiling_v)
             } else {
                 best.material.diffuse
             }
@@ -107,7 +107,7 @@ impl RenderPipeline {
         if let (true, Some(nmap)) = (best.has_tangent, &best.material.normal_map) {
             if best.has_uv {
                 let (u, v) = best.uv;
-                let nt = nmap.sample_normal_tangent_uv(u, v, best.material.tiling_u, best.material.tiling_v);
+                let nt = nmap.sample_normal_tangent_mip_uv(u, v, best.material.tiling_u, best.material.tiling_v);
                 let t = glm::normalize(&best.tangent);
                 let b = glm::normalize(&best.bitangent);
                 n = glm::normalize(&(n * 0.5 + (t * nt.x + b * nt.y + n * nt.z) * 0.5));
