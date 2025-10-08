@@ -5,6 +5,9 @@ use crate::color::Color;
 
 const TILE: usize = 8;
 
+const TEX_MAX_W: u32 = 512;
+const TEX_MAX_H: u32 = 512;
+
 #[derive(Debug, Clone)]
 pub struct Texture {
     pub w: usize,
@@ -18,14 +21,24 @@ pub struct Texture {
 
 impl Texture {
     pub fn from_file(path: &str) -> Self {
-        let img = match ImageReader::open(path) {
-            Ok(reader) => reader.decode().expect("Error al decodificar imagen"),
-            Err(_) => panic!("No se pudo abrir la textura en la ruta: {}", path),
+        let img0 = ImageReader::open(path)
+            .expect("No se pudo abrir la textura")
+            .decode()
+            .expect("Error al decodificar imagen")
+            .to_rgb8();
+
+        let (w0, h0) = img0.dimensions();
+        let scale = f32::min(TEX_MAX_W as f32 / w0 as f32, TEX_MAX_H as f32 / h0 as f32);
+        let img = if scale < 1.0 {
+            let tw = (w0 as f32 * scale).floor().max(1.0) as u32;
+            let th = (h0 as f32 * scale).floor().max(1.0) as u32;
+            image::imageops::resize(&img0, tw, th, image::imageops::FilterType::Triangle)
+        } else {
+            img0
         };
 
-        let img = img.to_rgb8();
-        let (w_32, h_32) = img.dimensions();
-        let (w, h) = (w_32 as usize, h_32 as usize);
+        let (w_u32, h_u32) = img.dimensions();
+        let (w, h) = (w_u32 as usize, h_u32 as usize);
 
         let pw = ((w + TILE - 1) / TILE) * TILE;
         let ph = ((h + TILE - 1) / TILE) * TILE;
