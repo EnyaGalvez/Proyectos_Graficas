@@ -41,6 +41,11 @@ pub struct Camera {
 }
 
 impl Camera { // Inicializacion de angulos
+    pub fn basis_change(v: &Vec3, x: &Vec3, y: &Vec3, z: &Vec3) -> Vec3 {
+        let rotated = v.x * *x + v.y * *y - v.z * *z;
+        sf_normalize(rotated)
+    }
+
     pub fn new(eye: Vec3, center: Vec3, up: Vec3) -> Self {
         let r = eye - center;
         let radius = r.magnitude().max(1e-6);
@@ -61,8 +66,14 @@ impl Camera { // Inicializacion de angulos
     // Ejes de camara: z = forward, x = right, y = up
     pub fn axes(&self) -> (Vec3, Vec3, Vec3) {
         let z = sf_normalize(self.center - self.eye);
-        let x = sf_normalize(z.cross(&self.up));
-        let y = sf_normalize(x.cross(&z));
+        let x0 = sf_normalize(z.cross(&self.up));
+        let y0 = sf_normalize(x0.cross(&z));
+
+        let cr = self.roll.cos();
+        let sr = self.roll.sin();
+
+        let x = sf_normalize(x0 * cr + y0 * sr);
+        let y = sf_normalize(-x0 * sr + y0 * cr);
         (x, y, z)
     }
 
@@ -78,12 +89,6 @@ impl Camera { // Inicializacion de angulos
             x.z, y.z, -z.z, 0.0,
             ex,  ey,   ez,  1.0,
         )
-    }
-
-    pub fn basis_change(&self, v: &Vec3) -> Vec3 {
-        let (x, y, z) = self.axes();
-        let rotated = v.x * x + v.y * y - v.z * z;
-        sf_normalize(rotated)
     }
 
     // Orbita al rededor del centro por YAWN, PITCH y ROLL

@@ -9,17 +9,27 @@ pub struct Material {
   pub albedo: [f32; 2],
   pub albedo_map: Option<Texture>,
   pub normal_map: Option<Texture>,
-  pub tiling: f32
+  pub tiling_u: f32,
+  pub tiling_v: f32
 }
 
 impl Material {
   pub fn new( diffuse: Color, specular: f32, albedo: [f32; 2]) -> Self {
-    Self { diffuse, specular, albedo, albedo_map: None, normal_map: None, tiling: 1.0 }
+    Self { 
+      diffuse, 
+      specular, 
+      albedo, 
+      albedo_map: None, 
+      normal_map: None, 
+      tiling_u: 1.0, 
+      tiling_v: 1.0 
+    }
   }
 
-  pub fn with_albedo_map(mut self, tex: Texture, tiling: f32) -> Self {
+  pub fn with_albedo_map(mut self, tex: Texture, tiling_u: f32, tiling_v: f32) -> Self {
         self.albedo_map = Some(tex);
-        self.tiling = tiling;
+        self.tiling_u = tiling_u;
+        self.tiling_v = tiling_v;
         self
     }
 
@@ -35,7 +45,8 @@ impl Material {
       albedo: [0.0, 0.2],
       albedo_map: None,
       normal_map: None,
-      tiling: 1.0,
+      tiling_u: 1.0,
+      tiling_v: 1.0
     }
   }
 }
