@@ -77,19 +77,56 @@ impl RenderPipeline {
         let light_distance = (light.position - hit.point).magnitude();
 
         let offset = hit.normal * SHADOW_BIAS;
-        let origin = if light_dir.dot(&hit.normal) < 0.0 {
+        let mut origin = if light_dir.dot(&hit.normal) < 0.0 {
             hit.point - offset
         } else {
             hit.point + offset
         };
 
-        for obj in objects {
-            let s = obj.ray_intersect(&origin, &light_dir);
-            if s.is_intersecting && s.distance < light_distance {
-                return 1.0;
+        let mut transmittance = 1.0_f32;
+        let mut traveled = 0.0_f32;
+
+        loop {
+            let mut nearest: Option<Intersect> = None;
+            let mut min_d = light_distance - traveled;
+
+            for obj in objects {
+                let s = obj.ray_intersect(&origin, &light_dir);
+                if s.is_intersecting && s.distance < min_d {
+                    min_d = s.distance;
+                    nearest = Some(s);
+                }
+            }
+            match nearest { 
+                Some(s) => { 
+                    let m = &s.material;
+
+                    if m.kt > 0.0 {
+                        
+                        let n_use = s.normal.normalize();
+                        let cosi = light_dir.dot(&n_use).abs();
+                        let f0 = ((m.ior - 1.0) / (m.ior + 1.0)).powi(2);
+                        let kf = self.fresnel_schlick(cosi, f0);
+                        let t = (m.kt * (1.0 - kf)).clamp(0.0, 1.0);
+
+                        transmittance *= t;
+
+                        // avanzar dentro del objeto
+                        let step = min_d + SHADOW_BIAS;
+                        traveled += step;
+                        origin   += light_dir * step;
+
+                        if transmittance < 0.01 || traveled >= light_distance {
+                            break;
+                        }
+                    } else {
+                        return 1.0;
+                    }
+                }
+                None => break,
             }
         }
-        0.0
+        1.0 - transmittance  
     }
 
     fn shade(&self, ray_o: &Vec3, ray_d: &Vec3, scene: &Scene, depth: u32) -> Color {
@@ -111,11 +148,28 @@ impl RenderPipeline {
             return Color::new(0, 0, 26);
         }
 
+        let n_geom = glm::normalize(&best.normal);
+        let light_dir = (scene.light.position - best.point).normalize();
+        let ndotl_geom = n_geom.dot(&light_dir);
+
+        let mut n = n_geom;
+        if ndotl_geom > 0.0 {
+            if let (true, Some(nmap)) = (best.has_tangent, &best.material.normal_map) {
+                if best.has_uv {
+                    let (u, v) = best.uv;
+                    let nt = nmap.sample_normal_tangent_mip_uv(u, v, best.material.normal_tu, best.material.normal_tv);
+                    let t = glm::normalize(&best.tangent);
+                    let b = glm::normalize(&best.bitangent);
+                    n = glm::normalize(&(t * nt.x + b * nt.y + n * nt.z));
+                }
+            }
+        }
+
         // Albedo (usando tiling U/V del material si hay UV)
         let base_color = if let Some(tex) = &best.material.albedo_map {
             if best.has_uv {
                 let (u, v) = best.uv;
-                tex.sample_tiled_mip(u, v, best.material.tiling_u, best.material.tiling_v)
+                tex.sample_tiled_mip(u, v, best.material.albedo_tu, best.material.albedo_tv)
             } else {
                 best.material.diffuse
             }
@@ -128,17 +182,30 @@ impl RenderPipeline {
         if let (true, Some(nmap)) = (best.has_tangent, &best.material.normal_map) {
             if best.has_uv {
                 let (u, v) = best.uv;
-                let nt = nmap.sample_normal_tangent_mip_uv(u, v, best.material.tiling_u, best.material.tiling_v);
-                let t = glm::normalize(&best.tangent);
+                let nt = nmap.sample_normal_tangent_mip_uv(u, v, best.material.normal_tu, best.material.normal_tv);                let t = glm::normalize(&best.tangent);
                 let b = glm::normalize(&best.bitangent);
                 n = glm::normalize(&(n * 0.5 + (t * nt.x + b * nt.y + n * nt.z) * 0.5));
             }
         }
 
         // Iluminación
-        let light_dir = (scene.light.position - best.point).normalize();
         let view_dir = (ray_o - best.point).normalize();
         let reflect_dir = self.reflect(&-light_dir, &n);
+        let (diffuse, specular, shadow) = if ndotl_geom <= 0.0 {
+            (Color::new(0,0,0), Color::new(0,0,0), 0.0)
+        } else {
+            let shadow = self.cast_shadow(&best, &scene.light, &scene.objects);
+            let light_intensity = scene.light.intensity * (1.0 - shadow);
+
+            let diff_i = n.dot(&light_dir).max(0.0);
+            let diffuse = base_color * best.material.albedo[0] * diff_i * light_intensity;
+
+            let reflect_dir = self.reflect(&-light_dir, &n);
+            let spec_i = view_dir.dot(&reflect_dir).max(0.0).powf(best.material.specular);
+            let specular = scene.light.color * best.material.albedo[1] * spec_i * light_intensity;
+
+            (diffuse, specular, shadow)
+        };
 
         // sombra
         let shadow = self.cast_shadow(&best, &scene.light, &scene.objects);

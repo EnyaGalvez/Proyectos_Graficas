@@ -100,43 +100,43 @@ fn main() {
     // materials
     let wood_texture = texture_table.get("wood").unwrap();
     let wood = Material::new(
-        Color::new(181,140, 90),
-        8.0,
-        [0.9, 0.1]
+        Color::new(181, 140, 90),
+        16.0,
+        [0.85, 0.05]
     ).with_albedo_map(
         wood_texture.albedo.clone(),
         0.5, 0.5
     ).with_normal_map(
         wood_texture.normal.clone(),
         0.5, 0.5,
-    );
+    ).with_reflectance(0.02).with_transparency(0.0, 1.0);
 
 
     let brick_texture = texture_table.get("brick").unwrap();
     let brick = Material::new(
         Color::new(180,180,180), 
-        16.0,
-        [0.85, 0.15]
+        12.0,
+        [0.9, 0.05]
     ).with_albedo_map(
         brick_texture.albedo.clone(),
         0.5, 0.5
     ).with_normal_map(
         brick_texture.normal.clone(),
         0.5, 0.5,
-    );
+    ).with_reflectance(0.01).with_transparency(0.0, 1.0);
 
     let stone_texture = texture_table.get("stone").unwrap();
     let stone = Material::new(
         Color::new(190,190,190), 
-        32.0,
-        [0.7, 0.25]
+        28.0,
+        [0.8, 0.10]
     ).with_albedo_map(
         stone_texture.albedo.clone(),
         0.5, 0.5
     ).with_normal_map(
         stone_texture.normal.clone(),
         0.5, 0.5,
-    );
+    ).with_reflectance(0.03).with_transparency(0.0, 1.0);
 
     let wool_texture = texture_table.get("wool").unwrap();
     let wool = Material::new(
@@ -149,7 +149,7 @@ fn main() {
     ).with_normal_map(
         wool_texture.normal.clone(),
         0.5, 0.5,
-    );
+    ).with_reflectance(0.0).with_transparency(0.0, 1.0);
 
     let glass = Material::new(
         Color::new(2,2,3), 
@@ -166,6 +166,18 @@ fn main() {
 
     // Objects (cubo, pared, escalera)
     const SCALE: f32 = 2.0 / 3.0;
+
+    // suelo
+    let floor_base = wood.clone();
+    let floor_sx = 10.0;
+    let floor_sz = 10.0;
+    let floor_thickness = 0.10;
+
+    let obj_half_h = (1.6 * SCALE) * 0.5;
+
+    let floor_center_y = -obj_half_h - floor_thickness * 0.5;
+
+    let floor = Wall::from_center_dims(Vec3::new(0.0, floor_center_y, 0.0), floor_sx, floor_thickness, floor_sz, floor_base);
 
     let stone_cube = Cube::from_center_size(Vec3::new(-3.0, 0.0, 0.0), 1.6 * SCALE, stone);
 
@@ -185,6 +197,7 @@ fn main() {
 
     let scene = Scene::new(
             vec![
+            Box::new(floor) as Box<dyn crate::intersect::RayIntersect>,
             Box::new(stone_cube) as Box<dyn crate::intersect::RayIntersect>,
             Box::new(wool_cube) as Box<dyn crate::intersect::RayIntersect>,
             Box::new(v_slap) as Box<dyn crate::intersect::RayIntersect>,
