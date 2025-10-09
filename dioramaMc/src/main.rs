@@ -96,10 +96,6 @@ fn main() {
 
     // textures from images
     let texture_table = load_textures();
-    let wood_texture = texture_table.get("wood").unwrap();
-    let brick_texture = texture_table.get("brick").unwrap();
-    let stone_texture = texture_table.get("stone").unwrap();
-    let wool_texture = texture_table.get("wool").unwrap();
 
     // materials
     let wood_texture = texture_table.get("wood").unwrap();
@@ -156,10 +152,10 @@ fn main() {
     );
 
     let glass = Material::new(
-        Color::new(255,255,255), 
-        128.0,
-        [0.0, 1.0]
-    );
+        Color::new(2,2,3), 
+        96.0,
+        [0.02, 0.10]
+    ).with_reflectance(0.04).with_transparency(0.9,1.5);
 
     // Comprobacion de carga de texturas
     /*
@@ -177,7 +173,7 @@ fn main() {
 
     let v_slap = Wall::from_center_dims(Vec3::new(0.0, 0.0, 0.0), 1.6 * SCALE, 1.6 * SCALE, 0.6 * SCALE, brick);
 
-    let glass = Wall::from_center_dims(Vec3::new(1.0, 0.0, 0.0), 1.6 * SCALE, 1.6 * SCALE, 0.6 * SCALE, glass);
+    let glass_wall = Wall::from_center_dims(Vec3::new(1.0, 0.0, 0.0), 1.6 * SCALE, 1.6 * SCALE, 0.6 * SCALE, glass);
 
     let stair = Stair::from_center_edge(Vec3::new(3.0, 0.0, 0.0), 1.6 * SCALE, wood, false);
 
@@ -192,7 +188,7 @@ fn main() {
             Box::new(stone_cube) as Box<dyn crate::intersect::RayIntersect>,
             Box::new(wool_cube) as Box<dyn crate::intersect::RayIntersect>,
             Box::new(v_slap) as Box<dyn crate::intersect::RayIntersect>,
-            Box::new(glass) as Box<dyn crate::intersect::RayIntersect>,
+            Box::new(glass_wall) as Box<dyn crate::intersect::RayIntersect>,
             Box::new(stair) as Box<dyn crate::intersect::RayIntersect>,
         ],
         light,

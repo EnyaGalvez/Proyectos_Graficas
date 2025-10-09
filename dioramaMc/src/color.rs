@@ -1,5 +1,4 @@
 // src/color.rs
-
 use std::fmt;
 use std::ops::{Mul, Add};
 

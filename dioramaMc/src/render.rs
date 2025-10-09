@@ -9,6 +9,7 @@ use nalgebra_glm::Vec3;
 use std::f32::consts::PI;
 
 const SHADOW_BIAS: f32 = 1e-4;
+const MAX_DEPTH: u32 = 3;
 
 pub struct Scene {
     pub objects: Vec<Box<dyn RayIntersect>>,
@@ -55,6 +56,22 @@ impl RenderPipeline {
         i - 2.0 * i.dot(n) * n
     }
 
+    #[inline]
+    fn fresnel_schlick(&self, cos_theta: f32, f0: f32) -> f32 {
+        f0 + (1.0 - f0) * (1.0 - cos_theta).powf(5.0)
+    }
+
+    #[inline]
+    fn refract(&self, i: &Vec3, n: &Vec3, eta: f32) -> Option<Vec3> {
+        let cosi = (-*i).dot(n).clamp(-1.0, 1.0);
+        let sin2_t = eta * eta * (1.0 - cosi * cosi);
+        if sin2_t > 1.0 {
+            return None;
+        }
+        let cost = (1.0 - sin2_t).sqrt();
+        Some(eta * *i + (eta * cosi - cost) * *n)
+    }
+
     fn cast_shadow(&self, hit: &Intersect, light: &Light, objects: &[Box<dyn RayIntersect>]) -> f32 {
         let light_dir = (light.position - hit.point).normalize();
         let light_distance = (light.position - hit.point).magnitude();
@@ -75,7 +92,11 @@ impl RenderPipeline {
         0.0
     }
 
-    fn shade(&self, ray_o: &Vec3, ray_d: &Vec3, scene: &Scene,) -> Color {
+    fn shade(&self, ray_o: &Vec3, ray_d: &Vec3, scene: &Scene, depth: u32) -> Color {
+        if depth >= MAX_DEPTH {
+            return Color::new(0, 0, 26);
+        }
+
         let mut best = Intersect::empty();
         let mut zbuf = f32::INFINITY;
         for obj in &scene.objects {
@@ -129,7 +150,51 @@ impl RenderPipeline {
         let spec_i = view_dir.dot(&reflect_dir).max(0.0).powf(best.material.specular);
         let specular = scene.light.color * best.material.albedo[1] * spec_i * light_intensity;
 
-        diffuse + specular
+        let mut local_col = diffuse + specular;
+
+        let kr = best.material.kr;
+        let kt = best.material.kt;
+        let ior = best.material.ior.max(1.0);
+
+        if kr > 0.0 || kt > 0.0 {
+            let mut n_use = n;
+            let into = ray_d.dot(&n_use) < 0.0;
+            let (n1, n2) = if into { (1.0_f32, ior) } else { (ior, 1.0_f32) };
+            if !into { n_use = -n_use; }
+            
+            //Fresnel
+            let cosi = (-*ray_d).dot(&n_use).clamp(0.0, 1.0);
+            let f0 = ((n2 - n1) / (n2 + n1)).powi(2);
+            let kf = self.fresnel_schlick(cosi, f0);
+
+            // Reflejo
+            let r_dir = self.reflect(ray_d, &n_use).normalize();
+            let r_org = best.point + n_use * SHADOW_BIAS;
+            let r_col = self.shade(&r_org, &r_dir, scene, depth + 1);
+
+            // Refraccion
+            let t_col = if kt > 0.0 {
+                let eta = n1 / n2;
+                if let Some(t_dir) = self.refract(ray_d, &n_use, eta) {
+                    let t_dir_n = t_dir.normalize();
+                    let t_org = best.point - n_use * SHADOW_BIAS;
+                    self.shade(&t_org, &t_dir_n, scene, depth + 1)
+                } else {
+                    r_col
+                }
+            } else {
+                Color::new(0,0,0)
+            };
+
+            let refl_w = kr.max(kf);
+            let tran_w = (kt * (1.0 - kf)).max(0.0);
+            let base_w = (1.0 - refl_w - tran_w).max(0.0);
+
+            local_col = local_col * base_w + r_col * refl_w + t_col * tran_w;
+        }
+
+        local_col
+
     }
 
     pub fn render(&self, fb: &mut Framebuffer, scene: &Scene, camera: &Camera) {
@@ -155,7 +220,7 @@ impl RenderPipeline {
                 let dir_world = x_axis * screen_x + y_axis * screen_y + z_axis;
                 let dir_world = nalgebra_glm::normalize(&dir_world);
 
-                let color = self.shade(&origin, &dir_world, scene);
+                let color = self.shade(&origin, &dir_world, scene, 0);
                 row[x] = color.to_hex();
             }
             fb.write_row(y, &row);

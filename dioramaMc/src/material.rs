@@ -10,10 +10,24 @@ pub struct Material {
   pub albedo_map: Option<Texture>,
   pub normal_map: Option<Texture>,
   pub tiling_u: f32,
-  pub tiling_v: f32
+  pub tiling_v: f32,
+  pub kr: f32,
+  pub kt: f32,
+  pub ior: f32
 }
 
 impl Material {
+  pub fn with_reflectance(mut self, kr: f32) -> Self {
+      self.kr = kr.clamp(0.0, 1.0);
+      self
+  }
+
+  pub fn with_transparency(mut self, kt: f32, ior: f32) -> Self {
+      self.kt = kt.clamp(0.0, 1.0);
+      self.ior = ior.max(1.0);
+      self
+  }
+
   pub fn new( diffuse: Color, specular: f32, albedo: [f32; 2]) -> Self {
     Self { 
       diffuse, 
@@ -22,7 +36,10 @@ impl Material {
       albedo_map: None, 
       normal_map: None, 
       tiling_u: 1.0, 
-      tiling_v: 1.0 
+      tiling_v: 1.0, 
+      kr: 0.0,
+      kt: 0.0,
+      ior: 1.0 
     }
   }
 
@@ -48,7 +65,10 @@ impl Material {
       albedo_map: None,
       normal_map: None,
       tiling_u: 1.0,
-      tiling_v: 1.0
+      tiling_v: 1.0,
+      kr: 0.0,
+      kt: 0.0,
+      ior: 1.0
     }
   }
 }
