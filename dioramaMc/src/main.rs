@@ -168,7 +168,6 @@ fn main() {
     println!("\nbrick normal: {}x{}", brick_texture.normal.w, brick_texture.normal.h);
     println!("wood normal: {}x{}", wood_texture.normal.w, wood_texture.normal.h);*/
 
-    // Objects (cubo, pared, escalera)
     const SCALE: f32 = 2.0 / 3.0;
 
     // suelo
@@ -181,18 +180,57 @@ fn main() {
 
     let floor_center_y = -obj_half_h - floor_thickness * 0.5;
 
-    let floor = Wall::from_center_dims(Vec3::new(0.0, floor_center_y, 0.0), floor_sx, floor_thickness, floor_sz, floor_base);
+    let floor = Wall::from_center_dims(
+        Vec3::new(0.0, floor_center_y, 0.0), 
+        floor_sx, floor_thickness, floor_sz, 
+        floor_base
+    ).with_tiling(6.0, 6.0);
 
-    let stone_cube = Cube::from_center_size(Vec3::new(-3.0, 0.0, 0.0), 1.6 * SCALE, stone);
+    // otros objetos
+    let stone_cube = Cube::from_center_size(
+        Vec3::new(7.0, 0.0, 0.0), 
+        1.6 * SCALE, 
+        stone
+    );
 
-    let wool_cube = Cube::from_center_size(Vec3::new(-1.0, 0.0, 0.0), 1.6 * SCALE, wool);
+    let wool_cube = Cube::from_center_size(
+        Vec3::new(-1.0, 0.0, 0.0), 
+        1.6 * SCALE, 
+        wool
+    );
 
-    let v_slap = Wall::from_center_dims(Vec3::new(0.0, 0.0, 0.0), 1.6 * SCALE, 1.6 * SCALE, 0.6 * SCALE, brick);
+    let v_slap = Wall::from_center_dims(
+        Vec3::new(0.0, 0.0, 5.0), 
+        1.6 * SCALE, // ancho
+        1.6 * SCALE * 5.0, // alto
+        0.6 * SCALE, // grosor
+        brick.clone()
+    ).with_tiling(2.0, 2.0);
 
-    let glass_wall = Wall::from_center_dims(Vec3::new(1.0, 0.0, 0.0), 1.6 * SCALE, 1.6 * SCALE, 0.6 * SCALE, glass);
+    let v_slap = Wall::from_center_dims(
+        Vec3::new(0.0, 0.0, 0.0), 
+        1.6 * SCALE, 
+        1.6 * SCALE, 
+        0.6 * SCALE, 
+        brick
+    )
 
-    let stair = Stair::from_center_edge(Vec3::new(3.0, 0.0, 0.0), 1.6 * SCALE, wood, false);
+    let glass_wall = Wall::from_center_dims(
+        Vec3::new(1.0, 2.0, 0.0), 
+        1.6 * SCALE, 
+        1.6 * SCALE, 
+        0.6 * SCALE, 
+        glass
+    );
 
+    let stair = Stair::from_center_edge(
+        Vec3::new(3.0, 0.0, 0.0), 
+        1.6 * SCALE, 
+        wood, 
+        false
+    ).with_tiling(1.0, 1.0);
+
+    // luz y escena
     let light = Light::new(
         Vec3::new(5.0, 6.0, 4.0),
         Color::new(255, 255, 204),
@@ -215,9 +253,9 @@ fn main() {
 
     // Initialize camera
     let mut camera = Camera::new(
-        Vec3::new(5.0, 3.0, 5.0),
-        Vec3::new(0.0, 0.0, 0.0),
-        Vec3::new(0.0, 1.0, 0.0),
+        Vec3::new(4.0, 1.5, 0.0), // eye
+        Vec3::new(0.0, 0.0, 0.0), // look at
+        Vec3::new(0.0, 4.0, 0.0), // up
     );
 
     // posicion y movimiento de camara

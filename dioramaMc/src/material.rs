@@ -66,6 +66,12 @@ impl Material {
     self
   }
 
+  pub fn with_tiling(mut self, u: f32, v: f32) -> Self {
+      self.tiling_u = u;
+      self.tiling_v = v;
+      self
+  }
+  
   pub fn black() -> Self {
     Material {
       diffuse: Color::new(0, 0, 0),

@@ -9,6 +9,8 @@ pub struct Wall {
     pub min: Vec3,
     pub max: Vec3,
     pub material: Material,
+    pub uv_tu: f32,
+    pub uv_tv: f32,
 }
 
 impl Wall {
@@ -20,8 +22,16 @@ impl Wall {
             min: Vec3::new(center.x - hx, center.y - hy, center.z - hz),
             max: Vec3::new(center.x + hx, center.y + hy, center.z + hz),
             material,
+            uv_tu: 1.0,
+            uv_tv: 1.0,
         }
     }
+
+    pub fn with_tiling(mut self, tu: f32, tv: f32) -> Self {
+    self.uv_tu = tu;
+    self.uv_tv = tv;
+    self
+}
 }
 
 impl RayIntersect for Wall {
@@ -66,46 +76,49 @@ impl RayIntersect for Wall {
 
         if (point.x - self.min.x).abs() < eps {
             normal = Vec3::new(-1.0, 0.0, 0.0);
-            u = (point.z - self.min.z) / sz;
-            v = (point.y - self.min.y) / sy;
+            u = ((point.z - self.min.z) / sz) * self.material.tiling_u;
+            v = ((point.y - self.min.y) / sy) * self.material.tiling_v;
             tangent = Vec3::new(0.0, 0.0, 1.0);
             bitangent = Vec3::new(0.0, 1.0, 0.0);
         } 
         else if (point.x - self.max.x).abs() < eps {
             normal = Vec3::new(1.0, 0.0, 0.0);
-            u = (self.max.z - point.z) / sz;
-            v = (point.y - self.min.y) / sy;
+            u = ((self.max.z - point.z) / sz) * self.material.tiling_u;
+            v = ((point.y - self.min.y) / sy) * self.material.tiling_v;
             tangent = Vec3::new(0.0, 0.0, -1.0);
             bitangent = Vec3::new(0.0, 1.0, 0.0);
         } 
         else if (point.y - self.min.y).abs() < eps {
             normal = Vec3::new(0.0, -1.0, 0.0);
-            u = (point.x - self.min.x) / sx;
-            v = (self.max.z - point.z) / sz;
+            u = ((point.x - self.min.x) / sx) * self.material.tiling_u;
+            v = ((self.max.z - point.z) / sz) * self.material.tiling_v;
             tangent = Vec3::new(1.0, 0.0, 0.0);
             bitangent = Vec3::new(0.0, 0.0, -1.0);
         } 
         else if (point.y - self.max.y).abs() < eps {
             normal = Vec3::new(0.0, 1.0, 0.0);
-            u = (point.x - self.min.x) / sx;
-            v = (point.z - self.min.z) / sz;
+            u = ((point.x - self.min.x) / sx) * self.material.tiling_u;
+            v = ((point.z - self.min.z) / sz) * self.material.tiling_v;
             tangent = Vec3::new(1.0, 0.0, 0.0);
             bitangent = Vec3::new(0.0, 0.0, 1.0);
         } 
         else if (point.z - self.min.z).abs() < eps {
             normal = Vec3::new(0.0, 0.0, -1.0);
-            u = (self.max.x - point.x) / sx;
-            v = (point.y - self.min.y) / sy;
+            u = ((self.max.x - point.x) / sx) * self.material.tiling_u;
+            v = ((point.y - self.min.y) / sy) * self.material.tiling_v;
             tangent = Vec3::new(-1.0, 0.0, 0.0);
             bitangent = Vec3::new(0.0, 1.0, 0.0);
         } 
         else if (point.z - self.max.z).abs() < eps {
             normal = Vec3::new(0.0, 0.0, 1.0);
-            u = (point.x - self.min.x) / sx;
-            v = (point.y - self.min.y) / sy;
+            u = ((point.x - self.min.x) / sx) * self.material.tiling_u;
+            v = ((point.y - self.min.y) / sy) * self.material.tiling_v;
             tangent = Vec3::new(1.0, 0.0, 0.0);
             bitangent = Vec3::new(0.0, 1.0, 0.0);
         }
+
+        u *= self.uv_tu;
+        v *= self.uv_tv;
 
         Intersect::new(point, normal, t, self.material.clone()).with_uv(u, v).with_tangent(tangent, bitangent)
     }

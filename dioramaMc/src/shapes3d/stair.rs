@@ -26,6 +26,12 @@ impl Stair {
 
         Stair { lower, upper }
     }
+
+    pub fn with_tiling(mut self, tu: f32, tv: f32) -> Self {
+        self.lower = self.lower.with_tiling(tu, tv);
+        self.upper = self.upper.with_tiling(tu, tv);
+        self
+    }
 }
 
 impl RayIntersect for Stair {
