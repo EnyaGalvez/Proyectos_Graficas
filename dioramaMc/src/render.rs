@@ -1,23 +1,26 @@
 // src/render.rs
+use rayon::prelude::*;
+use std::sync::Arc;
+use nalgebra_glm as glm;
+use nalgebra_glm::Vec3;
+use std::f32::consts::PI;
+
 use crate::camera::Camera;
 use crate::color::Color;
 use crate::framebuffer::Framebuffer;
 use crate::intersect::{Intersect, RayIntersect};
 use crate::light::Light;
-use nalgebra_glm as glm;
-use nalgebra_glm::Vec3;
-use std::f32::consts::PI;
 
 const SHADOW_BIAS: f32 = 1e-4;
 const MAX_DEPTH: u32 = 3;
 
 pub struct Scene {
-    pub objects: Vec<Box<dyn RayIntersect>>,
+    pub objects: Vec<Arc<dyn RayIntersect>>,
     pub light: Light,
 }
 
 impl Scene {
-    pub fn new(objects: Vec<Box<dyn RayIntersect>>, light: Light) -> Self {
+    pub fn new(objects: Vec<Arc<dyn RayIntersect>>, light: Light) -> Self {
         Self { objects, light }
     }
 }
@@ -72,7 +75,7 @@ impl RenderPipeline {
         Some(eta * *i + (eta * cosi - cost) * *n)
     }
 
-    fn cast_shadow(&self, hit: &Intersect, light: &Light, objects: &[Box<dyn RayIntersect>]) -> f32 {
+    fn cast_shadow(&self, hit: &Intersect, light: &Light, objects: &[Arc<dyn RayIntersect>]) -> f32 {
         let light_dir = (light.position - hit.point).normalize();
         let light_distance = (light.position - hit.point).magnitude();
 
@@ -114,7 +117,7 @@ impl RenderPipeline {
                         // avanzar dentro del objeto
                         let step = min_d + SHADOW_BIAS;
                         traveled += step;
-                        origin   += light_dir * step;
+                        origin += light_dir * step;
 
                         if transmittance < 0.01 || traveled >= light_distance {
                             break;
@@ -264,6 +267,35 @@ impl RenderPipeline {
 
     }
 
+    // paralelo
+    pub fn render_parallel(&self, fb: &mut Framebuffer, scene: &Scene, camera: &Camera) {
+        let snap = camera.snapshot_for(fb.width, fb.height);
+
+        let w = fb.width;
+        let h = fb.height;
+
+        // Procesa cada fila en paralelo
+        fb.buffer
+        .par_chunks_mut(w)
+        .enumerate()
+        .for_each(|(y, row)| {
+            let sy = -(2.0 * y as f32) / h as f32 + 1.0;
+            let screen_y = sy * snap.persp;
+
+            for x in 0..w {
+                let sx = (2.0 * x as f32) / w as f32 - 1.0;
+                let screen_x = sx * snap.aspect * snap.persp;
+
+                let dir = (snap.x * screen_x + snap.y * screen_y + snap.z).normalize();
+                let col = self.shade(&snap.eye, &dir, scene, 0).to_hex();
+
+                row[x] = col;
+            }
+        });
+    }
+
+    #[allow(dead_code)]
+    // secuencial
     pub fn render(&self, fb: &mut Framebuffer, scene: &Scene, camera: &Camera) {
         let params = self.build_camera_params(fb, camera);
         let persp  = params.persp;

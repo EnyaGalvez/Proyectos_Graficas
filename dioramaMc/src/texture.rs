@@ -188,31 +188,34 @@ impl Texture {
     }
 
     #[inline]
-    fn idx_swizzled(pw: usize, tiles_x: usize, tile: usize, x: usize, y: usize) -> usize {
+    fn idx_swizzled(pw: usize, tile: usize, x: usize, y: usize) -> usize {
         let tx = x / tile;
         let ty = y / tile;
         let ix = x % tile;
         let iy = y % tile;
+
+        let tiles_x = pw / tile;
+
         (ty * tiles_x + tx) * ( tile * tile) + iy * tile + ix
     }
 
     #[inline]
-    fn pixel_swizzled_at(data: &[Color], pw: usize, tiles_x: usize, tile: usize, w: usize, h: usize, x: usize, y: usize) -> Color {
+    fn pixel_swizzled_at(data: &[Color], pw: usize, tile: usize, w: usize, h: usize, x: usize, y: usize) -> Color {
         let cx = x.min(w - 1);
         let cy = y.min(h - 1);
-        let idx = Self::idx_swizzled(pw, tiles_x, tile, cx, cy);
+        let idx = Self::idx_swizzled(pw, tile, cx, cy);
         data[idx]
     }
 
     #[inline]
     fn pixel_swizzled(&self, x: usize, y: usize) -> Color {
-        Self::pixel_swizzled_at(&self.data_swz, self.pw, self.tiles_x, TILE, self.w, self.h, x, y)
+        Self::pixel_swizzled_at(&self.data_swz, self.pw, TILE, self.w, self.h, x, y)
     }
 
 
     #[inline]
     fn pixel_swizzled_mip(m: &Mip, x: usize, y: usize) -> Color {
-        Self::pixel_swizzled_at(&m.data_swz, m.pw, m.tiles_x, TILE, m.w, m.h, x, y)
+        Self::pixel_swizzled_at(&m.data_swz, m.pw, TILE, m.w, m.h, x, y)
     }
 
     #[inline]

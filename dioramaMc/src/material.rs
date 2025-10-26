@@ -1,4 +1,5 @@
 // material.rs
+use std::sync::Arc;
 use crate::color::Color;
 use crate::texture::Texture;
 
@@ -7,8 +8,8 @@ pub struct Material {
   pub diffuse: Color,
   pub specular: f32,
   pub albedo: [f32; 2],
-  pub albedo_map: Option<Texture>,
-  pub normal_map: Option<Texture>,
+  pub albedo_map: Option<Arc<Texture>>,
+  pub normal_map: Option<Arc<Texture>>,
   pub albedo_tu: f32,
   pub albedo_tv: f32,
   pub normal_tu: f32,
@@ -51,14 +52,14 @@ impl Material {
     }
   }
 
-  pub fn with_albedo_map(mut self, tex: Texture, tiling_u: f32, tiling_v: f32) -> Self {
+  pub fn with_albedo_map(mut self, tex: Arc<Texture>, tiling_u: f32, tiling_v: f32) -> Self {
     self.albedo_map = Some(tex);
     self.albedo_tu = tiling_u;
     self.albedo_tv = tiling_v;
     self
   }
 
-  pub fn with_normal_map(mut self, tex: Texture, tu: f32, tv: f32) -> Self {
+  pub fn with_normal_map(mut self, tex: Arc<Texture>, tu: f32, tv: f32) -> Self {
     self.normal_map = Some(tex);
     self.normal_tu = tu;
     self.normal_tv = tv;

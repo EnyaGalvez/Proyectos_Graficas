@@ -29,6 +29,9 @@ fn wrap_rad_tau(d: f32) -> f32 {
 /* Se definen vectores y angulos de movimiento:
  * Vectores: eye (Posicion de la camara), center (Punto al que mira la camara), up
  * Angulos: YAWN (y), PITCH (z), ROLL (x)
+
+ Por cada color y estilo un hilo reutilizable
+ Por cada objeto un hilo
 */
 pub struct Camera {
     pub eye: Vec3,
@@ -38,6 +41,16 @@ pub struct Camera {
     pub yawn: f32,
     pub pitch: f32,
     pub roll: f32
+}
+
+#[derive(Clone, Copy)]
+pub struct CameraSnapshot {
+    pub eye: Vec3,
+    pub x: Vec3,
+    pub y: Vec3,
+    pub z: Vec3,
+    pub persp: f32,
+    pub aspect: f32
 }
 
 impl Camera { // Inicializacion de angulos
@@ -75,6 +88,14 @@ impl Camera { // Inicializacion de angulos
         let x = sf_normalize(x0 * cr + y0 * sr);
         let y = sf_normalize(-x0 * sr + y0 * cr);
         (x, y, z)
+    }
+
+    pub fn snapshot_for(&self, fb_w: usize, fb_h: usize) -> CameraSnapshot {
+        let (x, y, z) = self.axes();
+        let aspect = fb_w as f32 / fb_h as f32;
+        let fov = std::f32::consts::PI / 3.0;
+        let persp = (fov * 0.5).tan();
+        CameraSnapshot { eye: self.eye, x, y, z, persp, aspect }
     }
 
     pub fn view_matrix(&self) -> Mat4 {

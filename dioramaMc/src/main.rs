@@ -1,5 +1,5 @@
 // src/main
-
+use std::sync::Arc;
 use nalgebra_glm::Vec3;
 use minifb::{Key, Window, WindowOptions};
 use std::time::{Duration, Instant};
@@ -17,6 +17,7 @@ mod texture;
 mod render;
 
 use framebuffer::Framebuffer;
+use intersect::RayIntersect;
 use shapes3d::{Cube, Wall, Stair};
 use color::Color;
 use camera::Camera;
@@ -98,56 +99,59 @@ fn main() {
     let texture_table = load_textures();
 
     // materials
+    // Madera
     let wood_texture = texture_table.get("wood").unwrap();
-    let wood = Material::new(
-        Color::new(181, 140, 90),
-        16.0,
+    let wood = Material::new( 
+        Color::new(181, 140, 90), 
+        16.0, 
         [0.85, 0.05]
-    ).with_albedo_map(
-        wood_texture.albedo.clone(),
-        0.5, 0.5
+    ).with_albedo_map( 
+        Arc::new(wood_texture.albedo.clone()), 0.5, 0.5
     ).with_normal_map(
-        wood_texture.normal.clone(),
+        Arc::new(wood_texture.normal.clone()),
         0.5, 0.5,
     ).with_reflectance(0.02).with_transparency(0.0, 1.0);
 
 
+    // Ladrillo
     let brick_texture = texture_table.get("brick").unwrap();
     let brick = Material::new(
         Color::new(180,180,180), 
         12.0,
         [0.9, 0.05]
     ).with_albedo_map(
-        brick_texture.albedo.clone(),
+        Arc::new(brick_texture.albedo.clone()),
         0.5, 0.5
     ).with_normal_map(
-        brick_texture.normal.clone(),
+        Arc::new(brick_texture.normal.clone()),
         0.5, 0.5,
     ).with_reflectance(0.01).with_transparency(0.0, 1.0);
 
+    // Piedra
     let stone_texture = texture_table.get("stone").unwrap();
     let stone = Material::new(
         Color::new(190,190,190), 
         28.0,
         [0.8, 0.10]
     ).with_albedo_map(
-        stone_texture.albedo.clone(),
+        Arc::new(stone_texture.albedo.clone()),
         0.5, 0.5
     ).with_normal_map(
-        stone_texture.normal.clone(),
+        Arc::new(stone_texture.normal.clone()),
         0.5, 0.5,
     ).with_reflectance(0.03).with_transparency(0.0, 1.0);
 
+    // Lana
     let wool_texture = texture_table.get("wool").unwrap();
     let wool = Material::new(
         Color::new(255, 153, 204), 
         10.0,
         [0.9, 0.1]
     ).with_albedo_map(
-        wool_texture.albedo.clone(),
+        Arc::new(wool_texture.albedo.clone()),
         0.5, 0.5
     ).with_normal_map(
-        wool_texture.normal.clone(),
+        Arc::new(wool_texture.normal.clone()),
         0.5, 0.5,
     ).with_reflectance(0.0).with_transparency(0.0, 1.0);
 
@@ -197,12 +201,12 @@ fn main() {
 
     let scene = Scene::new(
             vec![
-            Box::new(floor) as Box<dyn crate::intersect::RayIntersect>,
-            Box::new(stone_cube) as Box<dyn crate::intersect::RayIntersect>,
-            Box::new(wool_cube) as Box<dyn crate::intersect::RayIntersect>,
-            Box::new(v_slap) as Box<dyn crate::intersect::RayIntersect>,
-            Box::new(glass_wall) as Box<dyn crate::intersect::RayIntersect>,
-            Box::new(stair) as Box<dyn crate::intersect::RayIntersect>,
+            Arc::new(floor) as Arc<dyn RayIntersect>,
+            Arc::new(stone_cube) as Arc<dyn RayIntersect>,
+            Arc::new(wool_cube) as Arc<dyn RayIntersect>,
+            Arc::new(v_slap) as Arc<dyn RayIntersect>,
+            Arc::new(glass_wall) as Arc<dyn RayIntersect>,
+            Arc::new(stair) as Arc<dyn RayIntersect>,
         ],
         light,
     );
@@ -266,7 +270,7 @@ fn main() {
         if window.is_key_down(Key::E) { camera.dolly( dz); }
 
         framebuffer.clear();
-        renderer.render(&mut framebuffer, &scene, &camera);
+        renderer.render_parallel(&mut framebuffer, &scene, &camera);
 
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
