@@ -9,3 +9,9 @@ dependencias utilizadas:
 * rayon = "1.10"
 * parking_lot = "0.12"
 * crossbeam-channel = "0.5"
+
+Como movilizarse
+* Subir: Espacio
+* Bajar: Shift izquierdo
+* Izquierda/derecha: A/D
+* Rotar: Flechas
