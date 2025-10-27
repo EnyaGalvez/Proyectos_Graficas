@@ -157,7 +157,7 @@ impl RenderPipeline {
         }
 
         if !best.is_intersecting {
-            return Color::new(0, 0, 26);
+            return Color::new(0, 51, 102);
         }
 
         // Albedo (usando tiling U/V del material si hay UV)

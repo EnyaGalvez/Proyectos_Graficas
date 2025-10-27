@@ -84,7 +84,7 @@ fn main() {
 
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
     
-    framebuffer.set_background_color(Color::from_hex(0x003399).to_hex());
+    framebuffer.set_background_color(Color::from_hex(0x3377ff).to_hex());
 
     let mut window = Window::new(
         "Diorama - Proyecto 2",
@@ -168,7 +168,7 @@ fn main() {
             Color::new(2,34,102), 
             96.0,
             [0.02, 0.10]
-        ).with_reflectance(0.04).with_transparency(0.9,1.5)
+        ).with_reflectance(0.04).with_transparency(0.90,1.5)
     );
 
     // Comprobacion de carga de texturas
@@ -183,8 +183,8 @@ fn main() {
 
     // suelo
     let floor_base = wood.clone();
-    let floor_sx = 10.0;
-    let floor_sz = 10.0;
+    let floor_sx = 11.0;
+    let floor_sz = 11.0;
     let floor_thickness = 0.10;
 
     let obj_half_h = (1.6 * SCALE) * 0.5;
@@ -333,13 +333,13 @@ fn main() {
 
     let left_wall = Wall::from_center_dims(
         Vec3::new(
-            (floor_sx * 0.5) - (0.6 * SCALE * 0.5),
+            (floor_sx * 0.5) - (0.6 * SCALE * 0.5) - 1.0,
             floor_center_y + ((edge * 4.98) * 0.5),
             0.0
         ), 
         0.6 * SCALE, // ancho
         edge * 4.98, // alto
-        floor_sz, // grosor
+        floor_sz, // largo
         brick.clone()
     ).with_tiling(3.0, 4.0);
 
@@ -347,7 +347,7 @@ fn main() {
         Vec3::new(
             0.0,
             floor_center_y + ((edge * 4.98) * 0.5),
-            -((floor_sz * 0.5) + (0.6 * SCALE * 0.5))
+            -((floor_sz * 0.5) + (0.6 * SCALE * 0.5)) + 1.0
         ), 
         floor_sx, // ancho
         edge * 4.98, // alto
@@ -357,13 +357,13 @@ fn main() {
 
     let right_wall = Wall::from_center_dims(
         Vec3::new(
-            -((floor_sx * 0.5) - (0.6 * SCALE * 0.5)),
+            -((floor_sx * 0.5) - (0.6 * SCALE * 0.5)) + 1.0,
             floor_center_y + ((edge * 4.98) * 0.5),
             0.0
         ), 
         0.6 * SCALE, // ancho
         edge * 4.98, // alto
-        floor_sz, // grosor
+        floor_sz, // largo
         brick.clone()
     ).with_tiling(3.0, 4.0);
 
