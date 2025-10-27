@@ -15,16 +15,18 @@ mod light;
 mod material;
 mod texture;
 mod render;
+mod aabb;
 
 use framebuffer::Framebuffer;
 use intersect::RayIntersect;
-use shapes3d::{Cube, Wall, Stair};
+use shapes3d::{Cube, Wall, Stair, Facing, Orientation};
 use color::Color;
 use camera::Camera;
 use light::Light;
 use material::Material;
 use texture::{Texture, TextureOptions};
 use render::{Scene, RenderPipeline};
+use aabb::AABB;
 
 #[derive(Clone)]
 pub struct SkinTexture {
@@ -101,7 +103,7 @@ fn main() {
     // materials
     // Madera
     let wood_texture = texture_table.get("wood").unwrap();
-    let wood = Material::new( 
+    let wood = Arc::new(Material::new(
         Color::new(181, 140, 90), 
         16.0, 
         [0.85, 0.05]
@@ -110,56 +112,64 @@ fn main() {
     ).with_normal_map(
         Arc::new(wood_texture.normal.clone()),
         0.5, 0.5,
-    ).with_reflectance(0.02).with_transparency(0.0, 1.0);
+    ).with_reflectance(0.02).with_transparency(0.0, 1.0));
 
 
     // Ladrillo
     let brick_texture = texture_table.get("brick").unwrap();
-    let brick = Material::new(
-        Color::new(180,180,180), 
-        12.0,
-        [0.9, 0.05]
-    ).with_albedo_map(
-        Arc::new(brick_texture.albedo.clone()),
-        0.5, 0.5
-    ).with_normal_map(
-        Arc::new(brick_texture.normal.clone()),
-        0.5, 0.5,
-    ).with_reflectance(0.01).with_transparency(0.0, 1.0);
+    let brick = Arc::new(
+        Material::new(
+            Color::new(180,180,180), 
+            12.0,
+            [0.9, 0.05]
+        ).with_albedo_map(
+            Arc::new(brick_texture.albedo.clone()),
+            0.4, 0.4
+        ).with_normal_map(
+            Arc::new(brick_texture.normal.clone()),
+            0.4, 0.4,
+        ).with_reflectance(0.01).with_transparency(0.0, 1.0)
+    );
 
     // Piedra
     let stone_texture = texture_table.get("stone").unwrap();
-    let stone = Material::new(
-        Color::new(190,190,190), 
-        28.0,
-        [0.8, 0.10]
-    ).with_albedo_map(
-        Arc::new(stone_texture.albedo.clone()),
-        0.5, 0.5
-    ).with_normal_map(
-        Arc::new(stone_texture.normal.clone()),
-        0.5, 0.5,
-    ).with_reflectance(0.03).with_transparency(0.0, 1.0);
+    let stone = Arc::new(
+        Material::new(
+            Color::new(190,190,190), 
+            28.0,
+            [0.8, 0.10]
+        ).with_albedo_map(
+            Arc::new(stone_texture.albedo.clone()),
+            0.5, 0.5
+        ).with_normal_map(
+            Arc::new(stone_texture.normal.clone()),
+            0.5, 0.5,
+        ).with_reflectance(0.03).with_transparency(0.0, 1.0)
+    );
 
     // Lana
     let wool_texture = texture_table.get("wool").unwrap();
-    let wool = Material::new(
-        Color::new(255, 153, 204), 
-        10.0,
-        [0.9, 0.1]
-    ).with_albedo_map(
-        Arc::new(wool_texture.albedo.clone()),
-        0.5, 0.5
-    ).with_normal_map(
-        Arc::new(wool_texture.normal.clone()),
-        0.5, 0.5,
-    ).with_reflectance(0.0).with_transparency(0.0, 1.0);
+    let wool = Arc::new(
+            Material::new(
+            Color::new(255, 153, 204), 
+            10.0,
+            [0.9, 0.1]
+        ).with_albedo_map(
+            Arc::new(wool_texture.albedo.clone()),
+            0.5, 0.5
+        ).with_normal_map(
+            Arc::new(wool_texture.normal.clone()),
+            0.5, 0.5,
+        ).with_reflectance(0.0).with_transparency(0.0, 1.0)
+    );
 
-    let glass = Material::new(
-        Color::new(2,2,3), 
-        96.0,
-        [0.02, 0.10]
-    ).with_reflectance(0.04).with_transparency(0.9,1.5);
+    let glass = Arc::new(
+        Material::new(
+            Color::new(2,2,3), 
+            96.0,
+            [0.02, 0.10]
+        ).with_reflectance(0.04).with_transparency(0.9,1.5)
+    );
 
     // Comprobacion de carga de texturas
     /*
@@ -169,6 +179,7 @@ fn main() {
     println!("wood normal: {}x{}", wood_texture.normal.w, wood_texture.normal.h);*/
 
     const SCALE: f32 = 2.0 / 3.0;
+    let edge = 1.6 * SCALE;
 
     // suelo
     let floor_base = wood.clone();
@@ -183,42 +194,166 @@ fn main() {
     let floor = Wall::from_center_dims(
         Vec3::new(0.0, floor_center_y, 0.0), 
         floor_sx, floor_thickness, floor_sz, 
-        floor_base
+        floor_base.clone()
     ).with_tiling(6.0, 6.0);
 
-    // otros objetos
-    let stone_cube = Cube::from_center_size(
-        Vec3::new(7.0, 0.0, 0.0), 
-        1.6 * SCALE, 
-        stone
+    //techo
+    let roof = Wall::from_center_dims(
+        Vec3::new(0.0, floor_center_y * 5.0, 0.0),
+        floor_sx, floor_thickness, floor_sz, 
+        floor_base.clone()
+    ).with_tiling(6.0, 6.0);
+
+    // fireplace
+    // cubos de piedra
+    let stone_rtcube = Cube::from_center_size(
+        Vec3::new(1.1, 1.0, 4.2), 
+        edge, 
+        stone.clone()
     );
+
+    let stone_rbcube = Cube::from_center_size(
+        Vec3::new(1.1, 0.0, 4.23), 
+        edge, 
+        stone.clone()
+    );
+
+    let stone_ltcube = Cube::from_center_size(
+        Vec3::new(3.1, 1.0, 4.23), 
+        edge, 
+        stone.clone()
+    );
+
+    let stone_lbcube = Cube::from_center_size(
+        Vec3::new(3.1, 0.0, 4.23), 
+        edge, 
+        stone.clone()
+    );
+
+    let stone_tbcube = Cube::from_center_size(
+        Vec3::new(2.1, 2.0, 4.23), 
+        edge, 
+        stone.clone()
+    );
+
+    let stone_tccube = Cube::from_center_size(
+        Vec3::new(2.1, 3.0, 4.23), 
+        edge, 
+        stone.clone()
+    );
+
+    let stone_ttcube = Cube::from_center_size(
+        Vec3::new(2.1, 4.0, 4.23), 
+        edge, 
+        stone.clone()
+    );
+
+    // cubos de atras (fireplace)
+    let stone_bbcube = Cube::from_center_size(
+        Vec3::new(2.1, 0.0, 5.23), 
+        edge, 
+        stone.clone()
+    );
+
+    let stone_btcube = Cube::from_center_size(
+        Vec3::new(2.1, 1.0, 5.23), 
+        edge, 
+        stone.clone()
+    );
+
+    // escaleras de decoracion
+    let stone_rstair = Stair::from_center_edge_control(
+        Vec3::new(1.1, 2.0, 4.23),
+        edge,
+        stone.clone(),
+        Facing::Right,
+        Orientation::Upright
+    ).with_tiling(0.5, 0.5);
+
+    let stone_lstair = Stair::from_center_edge_control(
+        Vec3::new(3.1, 2.0, 4.23),
+        edge,
+        stone.clone(),
+        Facing::Left,
+        Orientation::Upright
+    ).with_tiling(0.5, 0.5);
+
+    let stone_board1 = Stair::from_center_edge_control(
+        Vec3::new(1.1, 1.0, 3.23),
+        edge,
+        stone.clone(),
+        Facing::Forward,
+        Orientation::UpsideDown
+    ).with_tiling(0.5, 0.5);
+
+    let stone_board2 = Stair::from_center_edge_control(
+        Vec3::new(2.1, 1.0, 3.23),
+        edge,
+        stone.clone(),
+        Facing::Forward,
+        Orientation::UpsideDown
+    ).with_tiling(0.5, 0.5);
+
+    let stone_board3 = Stair::from_center_edge_control(
+        Vec3::new(3.1, 1.0, 3.23),
+        edge,
+        stone.clone(),
+        Facing::Forward,
+        Orientation::UpsideDown
+    ).with_tiling(0.5, 0.5);
+
+    //paredes
+    let f_rwall = Wall::from_center_dims(
+        Vec3::new(0.6, 0.0, 4.9), 
+        edge * 2.22, // ancho
+        edge * 8.88, // alto
+        0.6 * SCALE, // grosor
+        brick.clone()
+    ).with_tiling(1.0, 4.0);
+
+    let f_lwall = Wall::from_center_dims(
+        Vec3::new(3.6, 0.0, 4.9), 
+        edge * 2.22, // ancho
+        edge * 8.88, // alto
+        0.6 * SCALE, // grosor
+        brick.clone()
+    ).with_tiling(1.0, 4.0);
+
+    let left_wall = Wall::from_center_dims(
+        Vec3::new(
+            (floor_sx * 0.5) - (0.6 * SCALE * 0.5),
+            floor_center_y + ((edge * 6.88) * 0.5),
+            0.0
+        ), 
+        0.6 * SCALE, // ancho
+        edge * 6.88, // alto
+        floor_sz, // grosor
+        brick.clone()
+    ).with_tiling(3.0, 4.0);
+
+    let back_wall = Wall::from_center_dims(
+        Vec3::new(
+            0.0,
+            floor_center_y + ((edge * 6.88) * 0.5),
+            -((floor_sz * 0.5) + (0.6 * SCALE * 0.5))
+        ), 
+        floor_sx, // ancho
+        edge * 6.88, // alto
+        0.6 * SCALE, // grosor
+        brick.clone()
+    ).with_tiling(3.0, 4.0);
 
     let wool_cube = Cube::from_center_size(
         Vec3::new(-1.0, 0.0, 0.0), 
         1.6 * SCALE, 
         wool
     );
-
-    let v_slap = Wall::from_center_dims(
-        Vec3::new(0.0, 0.0, 5.0), 
-        1.6 * SCALE, // ancho
-        1.6 * SCALE * 5.0, // alto
-        0.6 * SCALE, // grosor
-        brick.clone()
-    ).with_tiling(2.0, 2.0);
-
-    let v_slap = Wall::from_center_dims(
-        Vec3::new(0.0, 0.0, 0.0), 
-        1.6 * SCALE, 
-        1.6 * SCALE, 
-        0.6 * SCALE, 
-        brick
-    )
-
+    
+    // ventana
     let glass_wall = Wall::from_center_dims(
-        Vec3::new(1.0, 2.0, 0.0), 
-        1.6 * SCALE, 
-        1.6 * SCALE, 
+        Vec3::new(-2.6, 0.0, 4.9), 
+        edge * 2.22, 
+        edge * 8.88, 
         0.6 * SCALE, 
         glass
     );
@@ -232,30 +367,82 @@ fn main() {
 
     // luz y escena
     let light = Light::new(
-        Vec3::new(5.0, 6.0, 4.0),
+        Vec3::new(-3.0, 6.0, -3.0),
         Color::new(255, 255, 204),
         1.0
     );
 
-    let scene = Scene::new(
-            vec![
-            Arc::new(floor) as Arc<dyn RayIntersect>,
-            Arc::new(stone_cube) as Arc<dyn RayIntersect>,
-            Arc::new(wool_cube) as Arc<dyn RayIntersect>,
-            Arc::new(v_slap) as Arc<dyn RayIntersect>,
-            Arc::new(glass_wall) as Arc<dyn RayIntersect>,
-            Arc::new(stair) as Arc<dyn RayIntersect>,
-        ],
-        light,
-    );
+    /// aabb
+    let mut objects: Vec<Arc<dyn RayIntersect>> = Vec::new();
+    let mut bboxes: Vec<AABB> = Vec::new();
+
+    fn push_wall(objects: &mut Vec<Arc<dyn RayIntersect>>, bboxes: &mut Vec<AABB>, w: Wall) {
+        let bbox = AABB { min: w.min, max: w.max };
+        objects.push(Arc::new(w) as Arc<dyn RayIntersect>);
+        bboxes.push(bbox);
+    }
+
+    fn push_cube(objects: &mut Vec<Arc<dyn RayIntersect>>, bboxes: &mut Vec<AABB>, c: Cube) {
+        let bbox = AABB { min: c.min, max: c.max };
+        objects.push(Arc::new(c) as Arc<dyn RayIntersect>);
+        bboxes.push(bbox);
+    }
+
+    fn push_stair(objects: &mut Vec<Arc<dyn RayIntersect>>, bboxes: &mut Vec<AABB>, s: Stair) {
+        let lower = AABB { min: s.lower.min, max: s.lower.max };
+        let upper = AABB { min: s.upper.min, max: s.upper.max };
+        let bbox = AABB::union(lower, upper);
+        objects.push(Arc::new(s) as Arc<dyn RayIntersect>);
+        bboxes.push(bbox);
+    }
+
+    // Construccion de escena 
+    // Suelo y techo
+    push_wall(&mut objects, &mut bboxes, floor);
+    push_wall(&mut objects, &mut bboxes, roof);
+
+    // Fireplace - cubos de piedra
+    push_cube(&mut objects, &mut bboxes, stone_rtcube);
+    push_cube(&mut objects, &mut bboxes, stone_rbcube);
+    push_cube(&mut objects, &mut bboxes, stone_ltcube);
+    push_cube(&mut objects, &mut bboxes, stone_lbcube);
+    push_cube(&mut objects, &mut bboxes, stone_tbcube);
+    push_cube(&mut objects, &mut bboxes, stone_tccube);
+    push_cube(&mut objects, &mut bboxes, stone_ttcube);
+
+    // Cubos de atrás
+    push_cube(&mut objects, &mut bboxes, stone_bbcube);
+    push_cube(&mut objects, &mut bboxes, stone_btcube);
+
+    // Escaleras de decoración
+    push_stair(&mut objects, &mut bboxes, stone_rstair);
+    push_stair(&mut objects, &mut bboxes, stone_lstair);
+    push_stair(&mut objects, &mut bboxes, stone_board1);
+    push_stair(&mut objects, &mut bboxes, stone_board2);
+    push_stair(&mut objects, &mut bboxes, stone_board3);
+
+    // Paredes
+    push_wall(&mut objects, &mut bboxes, f_rwall);
+    push_wall(&mut objects, &mut bboxes, f_lwall);
+    push_wall(&mut objects, &mut bboxes, left_wall);
+    push_wall(&mut objects, &mut bboxes, back_wall);
+
+    // Otros
+    push_cube(&mut objects, &mut bboxes, wool_cube);
+    push_wall(&mut objects, &mut bboxes, glass_wall);
+
+    // Escalera principal
+    push_stair(&mut objects, &mut bboxes, stair);
+
+    let scene = Scene::new(objects, bboxes, light);
 
     let renderer = RenderPipeline::new();
 
     // Initialize camera
     let mut camera = Camera::new(
         Vec3::new(4.0, 1.5, 0.0), // eye
-        Vec3::new(0.0, 0.0, 0.0), // look at
-        Vec3::new(0.0, 4.0, 0.0), // up
+        Vec3::new(0.0, 1.0, 5.0), // look at
+        Vec3::new(0.0, 1.0, 0.0), // up
     );
 
     // posicion y movimiento de camara

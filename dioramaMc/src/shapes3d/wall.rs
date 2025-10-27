@@ -1,6 +1,7 @@
 // src/wall.rs
 
 use nalgebra_glm::Vec3;
+use std::sync::Arc;
 use crate::intersect::{RayIntersect, Intersect};
 use crate::material::Material;
 
@@ -8,13 +9,13 @@ use crate::material::Material;
 pub struct Wall {
     pub min: Vec3,
     pub max: Vec3,
-    pub material: Material,
+    pub material: Arc<Material>,
     pub uv_tu: f32,
     pub uv_tv: f32,
 }
 
 impl Wall {
-    pub fn from_center_dims(center: Vec3, sx: f32, sy: f32, sz: f32, material: Material) -> Self {
+    pub fn from_center_dims(center: Vec3, sx: f32, sy: f32, sz: f32, material: Arc<Material>) -> Self {
         let hx = sx * 0.5;
         let hy = sy * 0.5;
         let hz = sz * 0.5;

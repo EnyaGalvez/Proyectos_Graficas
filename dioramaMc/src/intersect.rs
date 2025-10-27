@@ -1,4 +1,5 @@
 // src/intersect.rs
+use std::sync::Arc;
 use nalgebra_glm::Vec3;
 use crate::material::Material;
 
@@ -9,7 +10,7 @@ pub struct Intersect {
     pub normal: Vec3,
     pub distance: f32,
     pub is_intersecting: bool,
-    pub material: Material,
+    pub material: Arc<Material>,
     pub uv: (f32, f32),
     pub has_uv: bool,
     pub tangent: Vec3,
@@ -18,7 +19,7 @@ pub struct Intersect {
 }
 
 impl Intersect {
-    pub fn new(point: Vec3, normal: Vec3, distance: f32, material: Material) -> Self {
+    pub fn new(point: Vec3, normal: Vec3, distance: f32, material: Arc<Material>) -> Self {
         Intersect {
             point,
             normal,
@@ -52,7 +53,7 @@ impl Intersect {
             normal: Vec3::zeros(),
             distance: 10.0,
             is_intersecting: false,
-            material: Material::black(),
+            material: Arc::new(Material::black()),
             uv: (0.0, 0.0),
             has_uv: false,
             tangent: Vec3::zeros(),

@@ -4,4 +4,4 @@ pub mod stair;
 
 pub use cube::Cube;
 pub use wall::Wall;
-pub use stair::Stair;
+pub use stair::{Stair, Facing, Orientation};

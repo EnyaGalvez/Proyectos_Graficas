@@ -5,6 +5,7 @@ use nalgebra_glm as glm;
 use nalgebra_glm::Vec3;
 use std::f32::consts::PI;
 
+use crate::aabb::AABB;
 use crate::camera::Camera;
 use crate::color::Color;
 use crate::framebuffer::Framebuffer;
@@ -12,16 +13,18 @@ use crate::intersect::{Intersect, RayIntersect};
 use crate::light::Light;
 
 const SHADOW_BIAS: f32 = 1e-4;
-const MAX_DEPTH: u32 = 3;
+const MAX_DEPTH: u32 = 2;
 
 pub struct Scene {
     pub objects: Vec<Arc<dyn RayIntersect>>,
+    pub bboxes: Vec<AABB>,
     pub light: Light,
 }
 
 impl Scene {
-    pub fn new(objects: Vec<Arc<dyn RayIntersect>>, light: Light) -> Self {
-        Self { objects, light }
+    pub fn new(objects: Vec<Arc<dyn RayIntersect>>, bboxes: Vec<AABB>, light: Light) -> Self {
+        debug_assert_eq!(objects.len(), bboxes.len(), "objects y bboxes deben tener misma longitud");
+        Self { objects, bboxes, light }
     }
 }
 
@@ -75,7 +78,7 @@ impl RenderPipeline {
         Some(eta * *i + (eta * cosi - cost) * *n)
     }
 
-    fn cast_shadow(&self, hit: &Intersect, light: &Light, objects: &[Arc<dyn RayIntersect>]) -> f32 {
+    fn cast_shadow(&self, hit: &Intersect, light: &Light, scene: &Scene) -> f32 {
         let light_dir = (light.position - hit.point).normalize();
         let light_distance = (light.position - hit.point).magnitude();
 
@@ -93,7 +96,10 @@ impl RenderPipeline {
             let mut nearest: Option<Intersect> = None;
             let mut min_d = light_distance - traveled;
 
-            for obj in objects {
+            for (obj, bbox) in scene.objects.iter().zip(scene.bboxes.iter()) {
+                let max_d = min_d; // estamos buscando algo más cerca que min_d
+                if !bbox.hit_ray(&origin, &light_dir, max_d) { continue; }
+
                 let s = obj.ray_intersect(&origin, &light_dir);
                 if s.is_intersecting && s.distance < min_d {
                     min_d = s.distance;
@@ -104,8 +110,7 @@ impl RenderPipeline {
                 Some(s) => { 
                     let m = &s.material;
 
-                    if m.kt > 0.0 {
-                        
+                    if m.kt > 0.0 { 
                         let n_use = s.normal.normalize();
                         let cosi = light_dir.dot(&n_use).abs();
                         let f0 = ((m.ior - 1.0) / (m.ior + 1.0)).powi(2);
@@ -139,7 +144,11 @@ impl RenderPipeline {
 
         let mut best = Intersect::empty();
         let mut zbuf = f32::INFINITY;
-        for obj in &scene.objects {
+        for (obj, bbox) in scene.objects.iter().zip(scene.bboxes.iter()) {
+            if !bbox.hit_ray(ray_o, ray_d, zbuf) { 
+                continue; 
+            }
+
             let i = obj.ray_intersect(ray_o, ray_d);
             if i.is_intersecting && i.distance < zbuf {
                 zbuf = i.distance;
@@ -197,7 +206,7 @@ impl RenderPipeline {
         let (diffuse, specular, shadow) = if ndotl_geom <= 0.0 {
             (Color::new(0,0,0), Color::new(0,0,0), 0.0)
         } else {
-            let shadow = self.cast_shadow(&best, &scene.light, &scene.objects);
+            let shadow = self.cast_shadow(&best, &scene.light, scene);
             let light_intensity = scene.light.intensity * (1.0 - shadow);
 
             let diff_i = n.dot(&light_dir).max(0.0);
@@ -211,7 +220,7 @@ impl RenderPipeline {
         };
 
         // sombra
-        let shadow = self.cast_shadow(&best, &scene.light, &scene.objects);
+        let shadow = self.cast_shadow(&best, &scene.light, scene);
         let light_intensity = scene.light.intensity * (1.0 - shadow);
 
         let diff_i = n.dot(&light_dir).max(0.0).min(1.0);
@@ -274,9 +283,8 @@ impl RenderPipeline {
         let w = fb.width;
         let h = fb.height;
 
-        // Procesa cada fila en paralelo
         fb.buffer
-        .par_chunks_mut(w)
+        .par_chunks_mut(w)          // cada chunk es una fila mutable
         .enumerate()
         .for_each(|(y, row)| {
             let sy = -(2.0 * y as f32) / h as f32 + 1.0;

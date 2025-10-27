@@ -1,18 +1,19 @@
 // src/cube.rs
-
 use nalgebra_glm::Vec3;
+use std::sync::Arc;
+
 use crate::intersect::{RayIntersect, Intersect};
 use crate::material::Material;
 
 pub struct Cube {
     pub min: Vec3, // Esquina minima
     pub max: Vec3, // Esquina maxima
-    pub material: Material,
+    pub material: Arc<Material>,
 }
 
 impl Cube {
     /// Construye un cubo a partir de centro y lado
-    pub fn from_center_size(center: Vec3, edge: f32, material: Material) -> Self {
+    pub fn from_center_size(center: Vec3, edge: f32, material: Arc<Material>) -> Self {
         let h = edge * 0.5;
         Cube {
             min: Vec3::new(center.x - h, center.y - h, center.z - h),
