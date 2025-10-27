@@ -319,14 +319,22 @@ fn main() {
         brick.clone()
     ).with_tiling(1.0, 4.0);
 
+    let g_wall = Wall::from_center_dims(
+        Vec3::new(-3.6, 0.0, 4.9), 
+        edge * 1.22, // ancho
+        edge * 8.88, // alto
+        0.6 * SCALE, // grosor
+        brick.clone()
+    ).with_tiling(1.0, 4.0);
+
     let left_wall = Wall::from_center_dims(
         Vec3::new(
             (floor_sx * 0.5) - (0.6 * SCALE * 0.5),
-            floor_center_y + ((edge * 6.88) * 0.5),
+            floor_center_y + ((edge * 4.88) * 0.5),
             0.0
         ), 
         0.6 * SCALE, // ancho
-        edge * 6.88, // alto
+        edge * 4.88, // alto
         floor_sz, // grosor
         brick.clone()
     ).with_tiling(3.0, 4.0);
@@ -334,33 +342,49 @@ fn main() {
     let back_wall = Wall::from_center_dims(
         Vec3::new(
             0.0,
-            floor_center_y + ((edge * 6.88) * 0.5),
+            floor_center_y + ((edge * 4.88) * 0.5),
             -((floor_sz * 0.5) + (0.6 * SCALE * 0.5))
         ), 
         floor_sx, // ancho
-        edge * 6.88, // alto
+        edge * 4.88, // alto
         0.6 * SCALE, // grosor
         brick.clone()
     ).with_tiling(3.0, 4.0);
 
-    let wool_cube = Cube::from_center_size(
-        Vec3::new(-1.0, 0.0, 0.0), 
-        1.6 * SCALE, 
-        wool
-    );
-    
+    let right_wall = Wall::from_center_dims(
+        Vec3::new(
+            -((floor_sx * 0.5) - (0.6 * SCALE * 0.5)),
+            floor_center_y + ((edge * 4.88) * 0.5),
+            0.0
+        ), 
+        0.6 * SCALE, // ancho
+        edge * 4.88, // alto
+        floor_sz, // grosor
+        brick.clone()
+    ).with_tiling(3.0, 4.0);
+
     // ventana
     let glass_wall = Wall::from_center_dims(
-        Vec3::new(-2.6, 0.0, 4.9), 
-        edge * 2.22, 
+        Vec3::new(-1.6, 0.0, 4.9), 
+        edge * 3.22, 
         edge * 8.88, 
         0.6 * SCALE, 
         glass
     );
 
-    let stair = Stair::from_center_edge(
+    // alfombra
+    let rug = Wall::from_center_dims(
+        Vec3::new(0.0, floor_center_y + floor_thickness * 0.5 + 0.01, 0.0), 
+        3.0, 
+        0.02,
+        2.5,
+        wool.clone()
+    ).with_tiling(2.0, 2.0);
+
+    // sillas
+    let chair = Stair::from_center_edge(
         Vec3::new(3.0, 0.0, 0.0), 
-        1.6 * SCALE, 
+        1.6 * SCALE,
         wood, 
         false
     ).with_tiling(1.0, 1.0);
@@ -426,13 +450,15 @@ fn main() {
     push_wall(&mut objects, &mut bboxes, f_lwall);
     push_wall(&mut objects, &mut bboxes, left_wall);
     push_wall(&mut objects, &mut bboxes, back_wall);
+    push_wall(&mut objects, &mut bboxes, right_wall);
+    push_wall(&mut objects, &mut bboxes, g_wall);
 
     // Otros
-    push_cube(&mut objects, &mut bboxes, wool_cube);
+    push_wall(&mut objects, &mut bboxes, rug);
     push_wall(&mut objects, &mut bboxes, glass_wall);
 
     // Escalera principal
-    push_stair(&mut objects, &mut bboxes, stair);
+    push_stair(&mut objects, &mut bboxes, chair);
 
     let scene = Scene::new(objects, bboxes, light);
 
@@ -440,8 +466,8 @@ fn main() {
 
     // Initialize camera
     let mut camera = Camera::new(
-        Vec3::new(4.0, 1.5, 0.0), // eye
-        Vec3::new(0.0, 1.0, 5.0), // look at
+        Vec3::new(0.0, 1.5, 0.0), // eye
+        Vec3::new(0.0, 2.0, 5.0), // look at
         Vec3::new(0.0, 1.0, 0.0), // up
     );
 
