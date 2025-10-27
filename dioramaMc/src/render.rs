@@ -18,11 +18,11 @@ const MAX_DEPTH: u32 = 2;
 pub struct Scene {
     pub objects: Vec<Arc<dyn RayIntersect>>,
     pub bboxes: Vec<AABB>,
-    pub light: Light,
+    pub light: Vec<Light>,
 }
 
 impl Scene {
-    pub fn new(objects: Vec<Arc<dyn RayIntersect>>, bboxes: Vec<AABB>, light: Light) -> Self {
+    pub fn new(objects: Vec<Arc<dyn RayIntersect>>, bboxes: Vec<AABB>, light: Vec<Light>) -> Self {
         debug_assert_eq!(objects.len(), bboxes.len(), "objects y bboxes deben tener misma longitud");
         Self { objects, bboxes, light }
     }
@@ -160,23 +160,6 @@ impl RenderPipeline {
             return Color::new(0, 0, 26);
         }
 
-        let n_geom = glm::normalize(&best.normal);
-        let light_dir = (scene.light.position - best.point).normalize();
-        let ndotl_geom = n_geom.dot(&light_dir);
-
-        let mut n = n_geom;
-        if ndotl_geom > 0.0 {
-            if let (true, Some(nmap)) = (best.has_tangent, &best.material.normal_map) {
-                if best.has_uv {
-                    let (u, v) = best.uv;
-                    let nt = nmap.sample_normal_tangent_mip_uv(u, v, best.material.normal_tu, best.material.normal_tv);
-                    let t = glm::normalize(&best.tangent);
-                    let b = glm::normalize(&best.bitangent);
-                    n = glm::normalize(&(t * nt.x + b * nt.y + n * nt.z));
-                }
-            }
-        }
-
         // Albedo (usando tiling U/V del material si hay UV)
         let base_color = if let Some(tex) = &best.material.albedo_map {
             if best.has_uv {
@@ -194,42 +177,45 @@ impl RenderPipeline {
         if let (true, Some(nmap)) = (best.has_tangent, &best.material.normal_map) {
             if best.has_uv {
                 let (u, v) = best.uv;
-                let nt = nmap.sample_normal_tangent_mip_uv(u, v, best.material.normal_tu, best.material.normal_tv);                let t = glm::normalize(&best.tangent);
+                let nt = nmap.sample_normal_tangent_mip_uv(u, v, best.material.normal_tu, best.material.normal_tv);
+                let t = glm::normalize(&best.tangent);
                 let b = glm::normalize(&best.bitangent);
-                n = glm::normalize(&(n * 0.5 + (t * nt.x + b * nt.y + n * nt.z) * 0.5));
+                n = glm::normalize(&(n + (t * nt.x + b * nt.y + n * nt.z)));
             }
         }
 
         // Iluminación
         let view_dir = (ray_o - best.point).normalize();
-        let reflect_dir = self.reflect(&-light_dir, &n);
-        let (diffuse, specular, shadow) = if ndotl_geom <= 0.0 {
-            (Color::new(0,0,0), Color::new(0,0,0), 0.0)
-        } else {
-            let shadow = self.cast_shadow(&best, &scene.light, scene);
-            let light_intensity = scene.light.intensity * (1.0 - shadow);
+        // Acumular contribuciones de TODAS las luces
+        let mut diffuse_acc = Color::new(0,0,0);
+        let mut specular_acc = Color::new(0,0,0);
 
-            let diff_i = n.dot(&light_dir).max(0.0);
-            let diffuse = base_color * best.material.albedo[0] * diff_i * light_intensity;
+        for light in &scene.light {
+            let light_dir = (light.position - best.point).normalize();
+            let ndotl = n.dot(&light_dir);
+            if ndotl <= 0.0 {
+                continue;
+            }
 
+            // Sombra por-luz (si la luz proyecta sombras)
+            let shadow = if light.casts_shadows {
+                self.cast_shadow(&best, light, scene)
+            } else {
+                0.0
+            };
+            let light_intensity = light.intensity * (1.0 - shadow);
+
+            // Difusa
+            let diff_i = ndotl.max(0.0);
+            diffuse_acc = diffuse_acc + base_color * best.material.albedo[0] * diff_i * light_intensity;
+
+            // Especular
             let reflect_dir = self.reflect(&-light_dir, &n);
             let spec_i = view_dir.dot(&reflect_dir).max(0.0).powf(best.material.specular);
-            let specular = scene.light.color * best.material.albedo[1] * spec_i * light_intensity;
+            specular_acc = specular_acc + light.color * best.material.albedo[1] * spec_i * light_intensity;
+        }
 
-            (diffuse, specular, shadow)
-        };
-
-        // sombra
-        let shadow = self.cast_shadow(&best, &scene.light, scene);
-        let light_intensity = scene.light.intensity * (1.0 - shadow);
-
-        let diff_i = n.dot(&light_dir).max(0.0).min(1.0);
-        let diffuse = base_color * best.material.albedo[0] * diff_i * light_intensity;
-
-        let spec_i = view_dir.dot(&reflect_dir).max(0.0).powf(best.material.specular);
-        let specular = scene.light.color * best.material.albedo[1] * spec_i * light_intensity;
-
-        let mut local_col = diffuse + specular;
+        let mut local_col = diffuse_acc + specular_acc;
 
         let kr = best.material.kr;
         let kt = best.material.kt;

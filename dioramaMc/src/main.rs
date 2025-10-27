@@ -84,7 +84,7 @@ fn main() {
 
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
     
-    framebuffer.set_background_color(Color::from_hex(0x001018).to_hex());
+    framebuffer.set_background_color(Color::from_hex(0x003399).to_hex());
 
     let mut window = Window::new(
         "Diorama - Proyecto 2",
@@ -165,7 +165,7 @@ fn main() {
 
     let glass = Arc::new(
         Material::new(
-            Color::new(2,2,3), 
+            Color::new(2,34,102), 
             96.0,
             [0.02, 0.10]
         ).with_reflectance(0.04).with_transparency(0.9,1.5)
@@ -198,8 +198,12 @@ fn main() {
     ).with_tiling(6.0, 6.0);
 
     //techo
+    let floor_top = floor_center_y + floor_thickness * 0.5;
+    let ceiling_bottom = 0.0 + (edge * 7.88) * 0.5;
+    let roof_center_y = ceiling_bottom + floor_thickness * 0.5;
+
     let roof = Wall::from_center_dims(
-        Vec3::new(0.0, floor_center_y * 5.0, 0.0),
+        Vec3::new(0.0, roof_center_y, 0.0),
         floor_sx, floor_thickness, floor_sz, 
         floor_base.clone()
     ).with_tiling(6.0, 6.0);
@@ -320,8 +324,8 @@ fn main() {
     ).with_tiling(1.0, 4.0);
 
     let g_wall = Wall::from_center_dims(
-        Vec3::new(-3.6, 0.0, 4.9), 
-        edge * 1.22, // ancho
+        Vec3::new(-3.8, 0.0, 4.9), 
+        edge * 1.44, // ancho
         edge * 8.88, // alto
         0.6 * SCALE, // grosor
         brick.clone()
@@ -330,11 +334,11 @@ fn main() {
     let left_wall = Wall::from_center_dims(
         Vec3::new(
             (floor_sx * 0.5) - (0.6 * SCALE * 0.5),
-            floor_center_y + ((edge * 4.88) * 0.5),
+            floor_center_y + ((edge * 4.98) * 0.5),
             0.0
         ), 
         0.6 * SCALE, // ancho
-        edge * 4.88, // alto
+        edge * 4.98, // alto
         floor_sz, // grosor
         brick.clone()
     ).with_tiling(3.0, 4.0);
@@ -342,11 +346,11 @@ fn main() {
     let back_wall = Wall::from_center_dims(
         Vec3::new(
             0.0,
-            floor_center_y + ((edge * 4.88) * 0.5),
+            floor_center_y + ((edge * 4.98) * 0.5),
             -((floor_sz * 0.5) + (0.6 * SCALE * 0.5))
         ), 
         floor_sx, // ancho
-        edge * 4.88, // alto
+        edge * 4.98, // alto
         0.6 * SCALE, // grosor
         brick.clone()
     ).with_tiling(3.0, 4.0);
@@ -354,11 +358,11 @@ fn main() {
     let right_wall = Wall::from_center_dims(
         Vec3::new(
             -((floor_sx * 0.5) - (0.6 * SCALE * 0.5)),
-            floor_center_y + ((edge * 4.88) * 0.5),
+            floor_center_y + ((edge * 4.98) * 0.5),
             0.0
         ), 
         0.6 * SCALE, // ancho
-        edge * 4.88, // alto
+        edge * 4.98, // alto
         floor_sz, // grosor
         brick.clone()
     ).with_tiling(3.0, 4.0);
@@ -382,21 +386,44 @@ fn main() {
     ).with_tiling(2.0, 2.0);
 
     // sillas
-    let chair = Stair::from_center_edge(
-        Vec3::new(3.0, 0.0, 0.0), 
+    let chair1 = Stair::from_center_edge_control(
+        Vec3::new(3.1, 0.0, 0.0), 
         1.6 * SCALE,
-        wood, 
-        false
+        wool.clone(), 
+        Facing::Right,
+        Orientation::Upright
     ).with_tiling(1.0, 1.0);
 
-    // luz y escena
+    let chair2 = Stair::from_center_edge_control(
+        Vec3::new(-3.1, 0.0, 0.0),
+        edge,
+        wool.clone(),
+        Facing::Left,
+        Orientation::Upright
+    ).with_tiling(0.5, 0.5);
+
+    let chair3 = Stair::from_center_edge_control(
+        Vec3::new(-3.1, 0.0, 1.0),
+        edge,
+        wool.clone(),
+        Facing::Left,
+        Orientation::Upright
+    ).with_tiling(0.5, 0.5);
+
+    // luces
     let light = Light::new(
-        Vec3::new(-3.0, 6.0, -3.0),
+        Vec3::new(-3.0, ceiling_bottom - 1.0, -3.0),
         Color::new(255, 255, 204),
         1.0
     );
 
-    /// aabb
+    let fire = Light::new(
+        Vec3::new(2.1, 0.5, 4.23),
+        Color::new(255, 140, 64),
+        0.35
+    ).no_shadow();
+
+    // aabb
     let mut objects: Vec<Arc<dyn RayIntersect>> = Vec::new();
     let mut bboxes: Vec<AABB> = Vec::new();
 
@@ -457,10 +484,12 @@ fn main() {
     push_wall(&mut objects, &mut bboxes, rug);
     push_wall(&mut objects, &mut bboxes, glass_wall);
 
-    // Escalera principal
-    push_stair(&mut objects, &mut bboxes, chair);
+    // Sillas
+    push_stair(&mut objects, &mut bboxes, chair1);
+    push_stair(&mut objects, &mut bboxes, chair2);
+    push_stair(&mut objects, &mut bboxes, chair3);
 
-    let scene = Scene::new(objects, bboxes, light);
+    let scene = Scene::new(objects, bboxes, vec![light, fire]);
 
     let renderer = RenderPipeline::new();
 
@@ -512,8 +541,8 @@ fn main() {
         let p = pan_speed * dt * speed_factor;
         if window.is_key_down(Key::A) { camera.pan(-p, 0.0); }
         if window.is_key_down(Key::D) { camera.pan( p, 0.0); }
-        if window.is_key_down(Key::W) { camera.pan(0.0,  p); }
-        if window.is_key_down(Key::S) { camera.pan(0.0, -p); }
+        if window.is_key_down(Key::Space) { camera.pan(0.0,  p); }
+        if window.is_key_down(Key::LeftShift) { camera.pan(0.0, -p); }
 
         // Dolly en Z de cámara (Q/E)
         let dz = dolly_speed * dt * speed_factor;
