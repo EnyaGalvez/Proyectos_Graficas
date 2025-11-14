@@ -11,6 +11,7 @@ use crate::color::Color;
 use crate::framebuffer::Framebuffer;
 use crate::intersect::{Intersect, RayIntersect};
 use crate::light::Light;
+use crate::stars::Stars;
 
 const SHADOW_BIAS: f32 = 1e-4;
 const MAX_DEPTH: u32 = 2;
@@ -19,12 +20,13 @@ pub struct Scene {
     pub objects: Vec<Arc<dyn RayIntersect>>,
     pub bboxes: Vec<AABB>,
     pub light: Vec<Light>,
+    pub stars: Stars
 }
 
 impl Scene {
-    pub fn new(objects: Vec<Arc<dyn RayIntersect>>, bboxes: Vec<AABB>, light: Vec<Light>) -> Self {
+    pub fn new(objects: Vec<Arc<dyn RayIntersect>>, bboxes: Vec<AABB>, light: Vec<Light>, stars: Stars) -> Self {
         debug_assert_eq!(objects.len(), bboxes.len(), "objects y bboxes deben tener misma longitud");
-        Self { objects, bboxes, light }
+        Self { objects, bboxes, light, stars }
     }
 }
 
@@ -97,7 +99,7 @@ impl RenderPipeline {
             let mut min_d = light_distance - traveled;
 
             for (obj, bbox) in scene.objects.iter().zip(scene.bboxes.iter()) {
-                let max_d = min_d; // estamos buscando algo más cerca que min_d
+                let max_d = min_d;
                 if !bbox.hit_ray(&origin, &light_dir, max_d) { continue; }
 
                 let s = obj.ray_intersect(&origin, &light_dir);
@@ -109,6 +111,17 @@ impl RenderPipeline {
             match nearest { 
                 Some(s) => { 
                     let m = &s.material;
+
+                    if !m.casts_shadows {
+                        let step = min_d + SHADOW_BIAS;
+                        traveled += step;
+                        origin += light_dir * step;
+                        
+                        if traveled >= light_distance {
+                            break;
+                        }
+                        continue;
+                    }
 
                     if m.kt > 0.0 { 
                         let n_use = s.normal.normalize();
@@ -157,7 +170,7 @@ impl RenderPipeline {
         }
 
         if !best.is_intersecting {
-            return Color::new(0, 51, 102);
+            return scene.stars.sample(ray_d);
         }
 
         // Albedo (usando tiling U/V del material si hay UV)
@@ -286,37 +299,5 @@ impl RenderPipeline {
                 row[x] = col;
             }
         });
-    }
-
-    #[allow(dead_code)]
-    // secuencial
-    pub fn render(&self, fb: &mut Framebuffer, scene: &Scene, camera: &Camera) {
-        let params = self.build_camera_params(fb, camera);
-        let persp  = params.persp;
-        let aspect = params.aspect;
-        let origin = params.origin;
-        let (x_axis, y_axis, z_axis) = (params.x_axis, params.y_axis, params.z_axis);
-
-        let width  = fb.width as usize;
-        let height = fb.height as usize;
-        
-        for y in 0..height {
-            let sy = -(2.0 * y as f32) / height as f32 + 1.0;
-            let screen_y = sy * persp;
-
-            let mut row = vec![0u32; width];
-            for x in 0..width {
-                let sx = (2.0 * x as f32) / width as f32 - 1.0;
-                let screen_x = sx * aspect * persp;
-
-                // Rayo en mundo
-                let dir_world = x_axis * screen_x + y_axis * screen_y + z_axis;
-                let dir_world = nalgebra_glm::normalize(&dir_world);
-
-                let color = self.shade(&origin, &dir_world, scene, 0);
-                row[x] = color.to_hex();
-            }
-            fb.write_row(y, &row);
-        }
     }
 }

@@ -1,0 +1,19 @@
+[package]
+name = "spacialRide"
+version = "0.1.0"
+edition = "2024"
+
+[profile.dev]
+opt-level = 3
+debug = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[dependencies]
+nalgebra-glm = "0.18.0"
+minifb = "0.26.0"
+image = { version = "0.24", features = ["png", "jpeg"] }
+rayon = "1.8"
