@@ -140,4 +140,20 @@ impl Framebuffer {
         img.save(path)?;
         Ok(())
     }
+
+    pub fn set_pixel(&mut self, x: usize, y: usize, color: Color) {
+        if x < self.width && y < self.height {
+            let index = y * self.width + x;
+            self.buffer[index] = color.to_hex();
+        }
+    }
+
+    pub fn get_pixel(&self, x: usize, y: usize) -> Option<u32> {
+        if x < self.width && y < self.height {
+            let index = y * self.width + x;
+            Some(self.buffer[index])
+        } else {
+            None
+        }
+    }
 }

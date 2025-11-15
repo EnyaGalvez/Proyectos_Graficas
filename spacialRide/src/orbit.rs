@@ -2,6 +2,7 @@
 use nalgebra_glm::Vec3;
 use std::f32::consts::PI;
 
+#[derive(Clone)]
 pub struct Orbit {
     pub center: Vec3,
     pub radius: f32,
