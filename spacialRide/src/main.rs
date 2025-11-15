@@ -12,6 +12,7 @@ mod aabb;
 mod stars;
 mod ring;
 mod orbit;
+mod controller;
 
 use std::sync::Arc;
 use minifb::{Key, Window, WindowOptions};
@@ -29,6 +30,7 @@ use aabb::AABB;
 use stars::Stars;
 use ring::Ring;
 use orbit::Orbit;
+use controller::Controller;
 
 const WIDTH: usize = 800;
 const HEIGHT: usize = 600;
@@ -52,6 +54,8 @@ fn main() {
 
     // Cargar texturas
     let earth_texture = Arc::new(Texture::from_file("assets/earth.jpg"));
+    let uranus_rings_texture = Arc::new(Texture::from_file("assets/uranus_rings.jpeg"));
+    let saturn_rings_texture = Arc::new(Texture::from_file("assets/saturn_rings.jpg"));
 
     // Material del Sol (emisivo, sin texturas)
     let sun_material = Arc::new(
@@ -126,7 +130,7 @@ fn main() {
     let saturn_material = Arc::new(
         Material::new(
             Color::new(234, 214, 184), // Color beige/amarillento
-            40.0,                       // Specular
+            25.0,                       // Specular
             [0.8, 0.2],                // Albedo
             0.05,                       // Poca reflectividad
             0.0,                        // Sin transparencia
@@ -136,8 +140,8 @@ fn main() {
 
     let uranus_material = Arc::new(
         Material::new(
-            Color::new(173, 216, 230), // Azul claro: rgba(173, 216, 230)
-            35.0,                       // Specular moderado
+            Color::new(100, 234, 253), // Azul claro: rgb(100, 234, 253)
+            35.0,                       // Specular
             [0.8, 0.2],                // Albedo
             0.1,                        // Poca reflectividad
             0.0,                        // Sin transparencia
@@ -146,15 +150,30 @@ fn main() {
     );
 
     // material para anillos (puedes darle textura)
-    let ring_material = Arc::new(
+    let saturn_ring_material = Arc::new(
         Material::new(
             Color::new(200,180,150), 
-            10.0, 
+            35.0, 
             [0.9,0.1], 
             0.0, 
             0.0, 
             1.0
-        )
+        ).with_albedo_map(saturn_rings_texture.clone())
+        .with_albedo_tiling(1.0, 1.0)
+        .no_shadow()
+    );
+
+    let uranus_ring_material = Arc::new(
+        Material::new(
+            Color::new(180,200,220), 
+            40.0, 
+            [0.9,0.1], 
+            0.2, 
+            0.2, 
+            1.0
+        ).with_albedo_map(uranus_rings_texture.clone())
+        .with_albedo_tiling(1.0, 1.0)
+        .no_shadow()
     );
 
     // material para lunas (simple gris)
@@ -170,11 +189,13 @@ fn main() {
     );
 
     // Configurar cámara estática
-    let camera = Camera::new(
+    let mut camera = Camera::new(
         vec3(0.0, 15.0, 38.0),  // Posición elevada y alejada
         vec3(0.0, 0.0, 0.0),   // Mirando al sol (centro)
         vec3(0.0, 1.0, 0.0),   // Up vector
     );
+
+    let mut controller = controller::Controller::new(0.2, 0.01, 0.5);
 
     // Parámetros de órbita de los planetas
     let mercury_orbit_radius = 6.0;
@@ -224,16 +245,19 @@ fn main() {
     let uranus_radius = 1.0;
 
     let saturn_ring_inner = saturn_radius * 1.2;
-    let saturn_ring_outer = saturn_radius * 3.0;
+    let saturn_ring_outer = saturn_radius * 2.0;
 
-    let uranus_ring_inner = uranus_radius * 1.1;
-    let uranus_ring_outer = uranus_radius * 2.0;
+    let uranus_ring_inner = uranus_radius * 0.8;
+    let uranus_ring_outer = uranus_radius * 1.5;
 
     let renderer = RenderPipeline::new();
 
     let start_time = std::time::Instant::now();
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        
+        controller.update(&window, &mut camera);
+
         // Calcular tiempo transcurrido
         let time = start_time.elapsed().as_secs_f32();
 
@@ -361,8 +385,8 @@ fn main() {
         // Crear planetas en posiciones orbitales (posicion, radio, material)
         let mercury = Arc::new(Sphere::new(mercury_pos, 0.2, mercury_material.clone()));
         let venus   = Arc::new(Sphere::new(venus_pos,   0.6, venus_material.clone()));
-        let earth   = Arc::new(Sphere::new(earth_pos,   0.8, earth_material.clone()));
-        let mars    = Arc::new(Sphere::new(mars_pos,    0.4, mars_material.clone()));
+        let earth   = Arc::new(Sphere::new(earth_pos,   0.7, earth_material.clone()));
+        let mars    = Arc::new(Sphere::new(mars_pos,    0.3, mars_material.clone()));
         let jupiter = Arc::new(Sphere::new(jupiter_pos, 1.4, jupiter_material.clone()));
         let saturn  = Arc::new(Sphere::new(saturn_pos,  saturn_radius, saturn_material.clone()));
         let uranus  = Arc::new(Sphere::new(uranus_pos,  uranus_radius, uranus_material.clone()));
@@ -375,7 +399,7 @@ fn main() {
             saturn_ring_normal,
             saturn_ring_inner,
             saturn_ring_outer,
-            ring_material.clone(),
+            saturn_ring_material.clone(),
         ));
 
         let uranus_ring = Arc::new(Ring::new(
@@ -383,7 +407,7 @@ fn main() {
             uranus_ring_normal,
             uranus_ring_inner,
             uranus_ring_outer,
-            ring_material.clone(),
+            uranus_ring_material.clone(),
         ));
 
         // Crear bounding boxes

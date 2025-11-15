@@ -149,6 +149,14 @@ impl Camera { // Inicializacion de angulos
         self.center += delta;
     }
 
+    // Movimiento hacia adelante/atrás
+    pub fn move_forward(&mut self, amount: f32) {
+        let (_x, _y, z) = self.axes();
+        let delta = z * amount;
+        self.eye += delta;
+        self.center += delta;
+    }
+
     // Acercamiento y alejamiento de la camara
     pub fn dolly(&mut self, dz: f32) {
         let (_x, _y, z) = self.axes();
