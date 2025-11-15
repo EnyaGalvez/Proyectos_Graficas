@@ -16,22 +16,22 @@ impl Controller {
     pub fn update(&mut self, window: &Window, camera: &mut Camera) {
         // Movimiento hacia adelante/atrás (W/S)
         if window.is_key_down(Key::W) {
-            camera.move_forward(-self.move_speed);
-        }
-
-        if window.is_key_down(Key::S) {
             camera.move_forward(self.move_speed);
         }
 
+        if window.is_key_down(Key::S) {
+            camera.move_forward(-self.move_speed);
+        }
+
         // Movimiento lateral y vertical (A/D/Space/LeftShift)
-/*
+
         if window.is_key_down(Key::A) {
-            camera.pan(-self.move_speed);
+            camera.pan(-self.move_speed, 0.0);
         }
 
         if window.is_key_down(Key::D) {
-            camera.pan(self.move_speed);
-        }*/
+            camera.pan(self.move_speed, 0.0);
+        }
 
         // Rotación con flechas
         if window.is_key_down(Key::Left) {
