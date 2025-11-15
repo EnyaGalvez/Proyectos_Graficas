@@ -13,4 +13,6 @@
 4. Zoom: Q / E
 *Cambio de vista (1ra y 3ra)*: V
 
-Se inicia en primera persona. En tercera persona se ve la nave
+> Nota: Se inicia en primera persona. En tercera persona se ve la nave
+
+Enlace al video: https://uvggt-my.sharepoint.com/:f:/g/personal/gal24693_uvg_edu_gt/IgCoOqoQgtFLTZOzT1s8oVdoAb2pBWXoru-jOsI9ege_ZD8?e=LaMZck
