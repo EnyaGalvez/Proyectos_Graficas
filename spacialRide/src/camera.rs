@@ -26,6 +26,12 @@ fn wrap_rad_tau(d: f32) -> f32 {
     x
 }
 
+#[derive(Copy, Clone, PartialEq)]
+pub enum CameraViewMode {
+    ThirdPerson,
+    FirstPerson,
+}
+
 /* Se definen vectores y angulos de movimiento:
  * Vectores: eye (Posicion de la camara), center (Punto al que mira la camara), up
  * Angulos: YAWN (y), PITCH (z), ROLL (x)
@@ -33,6 +39,7 @@ fn wrap_rad_tau(d: f32) -> f32 {
  Por cada color y estilo un hilo reutilizable
  Por cada objeto un hilo
 */
+
 pub struct Camera {
     pub eye: Vec3,
     pub center: Vec3,
@@ -40,7 +47,9 @@ pub struct Camera {
 
     pub yawn: f32,
     pub pitch: f32,
-    pub roll: f32
+    pub roll: f32,
+
+    pub view_mode: CameraViewMode,
 }
 
 #[derive(Clone, Copy)]
@@ -73,7 +82,29 @@ impl Camera { // Inicializacion de angulos
             yawn: wrap_rad_tau(yawn),
             pitch,
             roll,
+            view_mode: CameraViewMode::FirstPerson,
         }
+    }
+
+    pub fn toggle_view_mode(&mut self) {
+        self.view_mode = match self.view_mode {
+            CameraViewMode::FirstPerson => CameraViewMode::ThirdPerson,
+            CameraViewMode::ThirdPerson => CameraViewMode::FirstPerson,
+        };
+    }
+
+    pub fn set_view_mode(&mut self, mode: CameraViewMode) {
+        self.view_mode = mode;
+    }
+
+    /// Verifica si está en primera persona
+    pub fn is_first_person(&self) -> bool {
+        self.view_mode == CameraViewMode::FirstPerson
+    }
+
+    /// Verifica si está en tercera persona
+    pub fn is_third_person(&self) -> bool {
+        self.view_mode == CameraViewMode::ThirdPerson
     }
 
     // Ejes de camara: z = forward, x = right, y = up

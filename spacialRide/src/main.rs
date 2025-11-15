@@ -13,6 +13,10 @@ mod stars;
 mod ring;
 mod orbit;
 mod controller;
+mod model_renderer;
+mod obj_loader;
+mod vertex_shader;
+mod rasterizer;
 
 use std::sync::Arc;
 use minifb::{Key, Window, WindowOptions};
@@ -26,11 +30,11 @@ use material::Material;
 use sphere::Sphere;
 use texture::Texture;
 use render::{Scene, RenderPipeline};
+use model_renderer::{Model3D, ModelRenderer};
 use aabb::AABB;
 use stars::Stars;
 use ring::Ring;
 use orbit::Orbit;
-use controller::Controller;
 
 const WIDTH: usize = 800;
 const HEIGHT: usize = 600;
@@ -195,6 +199,14 @@ fn main() {
         vec3(0.0, 1.0, 0.0),   // Up vector
     );
 
+    // Cargar y configurar modelo de nave espacial
+    let mut spacecraft = Model3D::from_obj("res/nave.obj").expect("No se pudo cargar nave.obj");
+
+    spacecraft.scale = 0.3;
+    spacecraft.color = Color::new(150, 180, 255);
+
+    let mut model_renderer = ModelRenderer::new(WIDTH, HEIGHT);
+
     let mut controller = controller::Controller::new(0.2, 0.01, 0.5);
 
     // Parámetros de órbita de los planetas
@@ -212,9 +224,6 @@ fn main() {
 
     let jupiter_orbit_radius = 15.0;
     let jupiter_orbit_speed = 0.12;
-
-    let moon_orbit_radius = 1.8;
-    let moon_orbit_speed = 0.08;
 
     let saturn_orbit_radius = 20.0;
     let saturn_orbit_speed = 0.08;
@@ -234,7 +243,7 @@ fn main() {
             vec3(0.0, 19.0, 25.0),
             Color::new(255, 255, 230),
             1.6,
-        )
+        ).no_shadow()
     ];
 
     // Crear skybox de estrellas
@@ -324,12 +333,6 @@ fn main() {
             uranus_orbit_speed
         ).with_tilt(97.8);
 
-        let moon_orbit = Orbit::new(
-            earth_pos, 
-            moon_orbit_radius, 
-            moon_orbit_speed
-        ).with_phase(45.0);
-
         let moon_orbit_radius = 1.2;
         let moon_orbit_speed = 0.08;
 
@@ -338,6 +341,12 @@ fn main() {
 
         let deimos_orbit_radius = 1.4;
         let deimos_orbit_speed = 0.6;
+
+        let moon_orbit = Orbit::new(
+            earth_pos, 
+            moon_orbit_radius, 
+            moon_orbit_speed
+        ).with_phase(45.0);
 
         let phobos_orbit = Orbit::new(
             mars_pos, 
@@ -447,7 +456,36 @@ fn main() {
 
         // Limpiar y renderizar
         framebuffer.clear();
+
+        stars.draw_to_framebuffer(&mut framebuffer);
+        
         renderer.render_parallel(&mut framebuffer, &scene, &camera);
+
+        if camera.is_third_person() {
+            // MODO TERCERA PERSONA: Nave visible flotando
+            
+            // Guardar estado de cámara
+            let saved_eye = camera.eye;
+            let saved_center = camera.center;
+            let saved_up = camera.up;
+
+            // Configurar cámara temporal para la nave (fixed en origen)
+            camera.eye = vec3(0.0, 0.0, 0.0);
+            camera.center = vec3(0.0, 0.0, 1.0);
+            camera.up = vec3(0.0, 1.0, 0.0);
+
+            // Posicionar nave en esquina inferior derecha
+            spacecraft.position = vec3(3.0, -2.5, 5.0);
+
+            // Renderizar nave
+            model_renderer.clear_zbuffer();
+            model_renderer.render_model(&mut framebuffer, &spacecraft, &camera, false);
+
+            // Restaurar cámara
+            camera.eye = saved_eye;
+            camera.center = saved_center;
+            camera.up = saved_up;
+        }
 
         // Actualizar ventana
         window
